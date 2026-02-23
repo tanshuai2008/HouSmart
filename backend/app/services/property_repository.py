@@ -1,25 +1,15 @@
-from sqlalchemy import text
+from app.core.supabase_client import supabase
 
 class PropertyRepository:
 
     @staticmethod
-    def create_property(db, data):
+    def create_property(data: dict):
 
-        insert_query = text("""
-            INSERT INTO properties (
-                formatted_address, street, city, state, zip_code,
-                county_fips, tract_geoid, latitude, longitude, location
-            )
-            VALUES (
-                :formatted_address, :street, :city, :state, :zip_code,
-                :county_fips, :tract_geoid, :latitude, :longitude,
-                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)
-            )
-            RETURNING *
-        """)
+        data["location"] = f"POINT({data['longitude']} {data['latitude']})"
 
-        result = db.execute(insert_query, data)
-        property_row = result.mappings().fetchone()
-        db.commit()
+        response = supabase.table("properties").insert(data).execute()
 
-        return dict(property_row)
+        if response.data:
+            return response.data[0]
+
+        return None

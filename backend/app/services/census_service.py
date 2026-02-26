@@ -75,3 +75,72 @@ class CensusService:
         location_data['median_income'] = income
         
         return location_data
+    
+    @staticmethod
+    def get_bachelor_percentage(state: str, county: str, tract: str):
+        params = {
+            "get": "B15003_001E,B15003_022E",
+            "for": f"tract:{tract}",
+            "in": f"state:{state}+county:{county}",
+            "key": settings.CENSUS_API_KEY
+        }
+
+        response = requests.get(
+            CensusService.ACS_URL,
+            params=params,
+            timeout=10
+        )
+        response.raise_for_status()
+
+        data = response.json()
+
+        total_20_plus = float(data[1][0])
+        bachelor_count = float(data[1][1])
+
+        if total_20_plus == 0:
+            return None
+        bachelor_percentage = (bachelor_count / total_20_plus) * 100
+
+        return round(bachelor_percentage, 2)
+    
+
+    @staticmethod
+    def get_education_by_address(address: str):
+        location_data = CensusService.get_location_data(address=address)
+        if not location_data:
+            return None
+
+        education_percentage = CensusService.get_bachelor_percentage(
+            state=location_data["state_fips"],
+            county=location_data["county_code"],
+            tract=location_data["tract_code"]
+        )
+
+        location_data['bachelor_percentage'] = education_percentage
+
+        return location_data
+
+    
+    
+    @staticmethod
+    def get_income_and_education_by_address(address: str):
+        location_data = CensusService.get_location_data(address)
+        if not location_data:
+            return None
+
+        income = CensusService.get_median_income(
+            state=location_data["state_fips"],
+            county=location_data["county_code"],
+            tract=location_data["tract_code"]
+        )
+
+        bachelor_pct = CensusService.get_bachelor_percentage(
+            state=location_data["state_fips"],
+            county=location_data["county_code"],
+            tract=location_data["tract_code"]
+        )
+
+        location_data["median_income"] = income
+        location_data["bachelor_percentage"] = bachelor_pct
+
+        return location_data

@@ -144,3 +144,121 @@ async def save_flood_zone_to_db(lat: float, lng: float) -> dict:
 
     supabase.table("flood_zones").upsert(row).execute()
     return data
+
+
+async def check_flood_for_property(property_id: str) -> dict:
+    """
+    Task 4: Look up property from DB, check its flood zone,
+    and return whether it intersects a flood zone.
+    """
+    from app.core.supabase_client import supabase
+
+    # 1. Look up property coordinates
+    response = (
+        supabase.table("properties")
+        .select("id, formatted_address, latitude, longitude")
+        .eq("id", property_id)
+        .single()
+        .execute()
+    )
+
+    if not response.data:
+        raise ValueError(f"Property {property_id} not found")
+
+    prop = response.data
+    lat = prop["latitude"]
+    lng = prop["longitude"]
+
+    if not lat or not lng:
+        raise ValueError(f"Property {property_id} has no coordinates")
+
+    # 2. Get flood zone for this property
+    flood_data = await save_flood_zone_to_db(lat, lng)
+
+    # 3. Determine if property intersects a flood zone
+    high_risk_zones = {"A", "AE", "AO", "AH", "A99", "AR", "VE", "V"}
+    moderate_risk_zones = {"X500", "B"}
+    in_flood_zone = flood_data["fld_zone"] in high_risk_zones
+    in_moderate_zone = flood_data["fld_zone"] in moderate_risk_zones
+
+    return {
+        "property_id": property_id,
+        "property_address": prop.get("formatted_address"),
+        "property_lat": lat,
+        "property_lng": lng,
+        "fld_zone": flood_data["fld_zone"],
+        "risk_label": flood_data["risk_label"],
+        "flood_score": flood_data["flood_score"],
+        "in_flood_zone": in_flood_zone,           # True if high risk zone
+        "in_moderate_zone": in_moderate_zone,     # True if moderate risk zone
+        "flood_data_unknown": flood_data["flood_data_unknown"],
+        "source": flood_data["source"],
+    }
+
+
+async def check_all_properties_flood_intersect() -> dict:
+    """
+    Task 4 (bulk): Check ALL properties in DB and flag which ones
+    intersect high-risk flood zones.
+    """
+    from app.core.supabase_client import supabase
+
+    # Fetch all properties with coordinates
+    response = (
+        supabase.table("properties")
+        .select("id, formatted_address, latitude, longitude")
+        .execute()
+    )
+
+    properties = response.data or []
+    if not properties:
+        return {"total": 0, "results": [], "message": "No properties found in DB"}
+
+    results = []
+    high_risk_count = 0
+    moderate_risk_count = 0
+    minimal_risk_count = 0
+
+    for prop in properties:
+        lat = prop.get("latitude")
+        lng = prop.get("longitude")
+
+        if not lat or not lng:
+            continue
+
+        try:
+            flood_data = await get_flood_zone(lat, lng)
+            fld_zone = flood_data["fld_zone"]
+
+            high_risk_zones = {"A", "AE", "AO", "AH", "A99", "AR", "VE", "V"}
+            moderate_risk_zones = {"X500", "B"}
+            in_flood_zone = fld_zone in high_risk_zones
+            in_moderate_zone = fld_zone in moderate_risk_zones
+
+            if in_flood_zone:
+                high_risk_count += 1
+            elif in_moderate_zone:
+                moderate_risk_count += 1
+            else:
+                minimal_risk_count += 1
+
+            results.append({
+                "property_id": prop["id"],
+                "property_address": prop.get("formatted_address"),
+                "fld_zone": fld_zone,
+                "risk_label": flood_data["risk_label"],
+                "flood_score": flood_data["flood_score"],
+                "in_flood_zone": in_flood_zone,
+                "in_moderate_zone": in_moderate_zone,
+            })
+
+        except Exception:
+            continue
+
+    return {
+        "total": len(results),
+        "high_risk_count": high_risk_count,
+        "moderate_risk_count": moderate_risk_count,
+        "minimal_risk_count": minimal_risk_count,
+        "results": results,
+    }

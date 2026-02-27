@@ -2,10 +2,12 @@ import httpx
 import math
 import redis
 import json
+import logging
 from typing import Optional
 from app.core.config import settings
 
-# Redis client for caching (30-day TTL)
+logger = logging.getLogger(__name__)
+
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 CACHE_TTL = 60 * 60 * 24 * 30  # 30 days
 
@@ -15,8 +17,6 @@ OVERPASS_MIRRORS = [
     "https://overpass.kumi.systems/api/interpreter",
     "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
 ]
-
-RAIL_TYPES = {"station", "subway_entrance", "halt", "ferry_terminal"}
 
 SCORE_RUBRIC = [
     (20, 2, 95),
@@ -50,7 +50,8 @@ def _haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> flo
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
     dlambda = math.radians(lng2 - lng1)
-    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    a = (math.sin(dphi / 2) ** 2
+         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
@@ -66,31 +67,45 @@ def _compute_transit_score(bus_count: int, rail_count: int) -> float:
 
 
 async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) -> dict:
-    """Fetch transit stops from OSM and compute score. Cached in Redis."""
+    """
+    Fetch transit stops from OSM Overpass within radius.
+    Tries multiple mirrors. Results cached in Redis for 30 days.
+    """
     cache_key = f"transit:{lat:.4f}:{lng:.4f}:{radius_meters}"
 
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
+    # 1. Check Redis cache
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception as e:
+        logger.warning(f"Redis cache read failed: {e}")
 
+    # 2. Query Overpass — try each mirror
     query = _build_overpass_query(lat, lng, radius_meters)
-
-    # Try each mirror in order until one responds
     data = None
     last_error = None
+
     async with httpx.AsyncClient(timeout=30) as client:
         for mirror in OVERPASS_MIRRORS:
             try:
                 response = await client.post(mirror, data={"data": query})
                 response.raise_for_status()
                 data = response.json()
-                break  # success — stop trying mirrors
+                # Validate response has expected structure
+                if "elements" not in data:
+                    raise ValueError(f"Unexpected Overpass response structure: {list(data.keys())}")
+                logger.info(f"Overpass responded from mirror: {mirror}")
+                break
             except Exception as e:
+                logger.warning(f"Overpass mirror {mirror} failed: {type(e).__name__}")
                 last_error = e
-                continue  # try next mirror
+                continue
+
     if data is None:
         raise Exception(f"All Overpass mirrors failed. Last error: {last_error}")
 
+    # 3. Parse stops
     elements = data.get("elements", [])
     stops = []
     bus_count = 0
@@ -100,8 +115,10 @@ async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) 
     for el in elements:
         el_lat = el.get("lat")
         el_lng = el.get("lon")
-        tags = el.get("tags", {})
+        if el_lat is None or el_lng is None:
+            continue
 
+        tags = el.get("tags", {})
         stop_type = "bus_stop"
         if tags.get("railway") in ("station", "subway_entrance", "halt"):
             stop_type = tags["railway"]
@@ -133,17 +150,30 @@ async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) 
         "source": "OpenStreetMap (Overpass API)",
     }
 
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+    # 4. Cache result
+    try:
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+    except Exception as e:
+        logger.warning(f"Redis cache write failed: {e}")
+
     return result
 
 
 async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
-    """Task 1: Fetch stops from OSM and upsert into transit_stops table."""
+    """
+    Task 1: Fetch stops from OSM and upsert into transit_stops table.
+    Handles duplicates via on_conflict="osm_id".
+    """
     data = await fetch_transit_stops(lat, lng, radius_meters)
     stops = data.get("stops", [])
 
     if not stops:
-        return {"inserted": 0, "message": "No transit stops found in radius"}
+        return {
+            "inserted": 0,
+            "message": "No transit stops found within radius",
+            "transit_score": data["transit_score"],
+            "nearest_stop_meters": data["nearest_stop_meters"],
+        }
 
     from app.core.supabase_client import supabase
 
@@ -158,7 +188,14 @@ async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 
         for s in stops
     ]
 
-    supabase.table("transit_stops").upsert(rows, on_conflict="osm_id").execute()
+    try:
+        # on_conflict="osm_id" handles duplicates — updates existing rows
+        supabase.table("transit_stops").upsert(
+            rows, on_conflict="osm_id"
+        ).execute()
+    except Exception as e:
+        logger.error(f"DB upsert failed for transit stops: {e}")
+        raise
 
     return {
         "inserted": len(rows),
@@ -170,7 +207,10 @@ async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 
 
 
 async def save_transit_score_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
-    """Task 3 (lat/lng): Calculate transit distance & score and persist to transit_scores."""
+    """
+    Task 3: Calculate transit score and upsert into transit_scores table.
+    Handles duplicates via on_conflict="property_lat,property_lng".
+    """
     data = await fetch_transit_stops(lat, lng, radius_meters)
 
     from app.core.supabase_client import supabase
@@ -186,9 +226,13 @@ async def save_transit_score_to_db(lat: float, lng: float, radius_meters: int = 
         "source": data["source"],
     }
 
-    supabase.table("transit_scores").upsert(
-        row, on_conflict="property_lat,property_lng"
-    ).execute()
+    try:
+        supabase.table("transit_scores").upsert(
+            row, on_conflict="property_lat,property_lng"
+        ).execute()
+    except Exception as e:
+        logger.error(f"DB upsert failed for transit score: {e}")
+        raise
 
     return {
         "property_lat": lat,
@@ -205,12 +249,12 @@ async def save_transit_score_for_property(
     property_id: str, radius_meters: int = 800
 ) -> dict:
     """
-    Task 3 (main): Look up property lat/lng from properties table,
-    calculate distance to nearest transit stop, save score to transit_scores.
+    Task 3 (main): Look up property coordinates from DB,
+    calculate distance to nearest transit stop, save score.
     """
     from app.core.supabase_client import supabase
 
-    # 1. Look up property coordinates from DB
+    # 1. Look up property
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -222,18 +266,18 @@ async def save_transit_score_for_property(
     if not response.data:
         raise ValueError(f"Property {property_id} not found in database")
 
-    property_data = response.data
-    lat = property_data["latitude"]
-    lng = property_data["longitude"]
-    address = property_data.get("formatted_address", "Unknown")
+    prop = response.data
+    lat = prop.get("latitude")
+    lng = prop.get("longitude")
 
-    if not lat or not lng:
-        raise ValueError(f"Property {property_id} has no coordinates")
+    if lat is None or lng is None:
+        raise ValueError(f"Property {property_id} has no coordinates (lat/lng is null)")
 
-    # 2. Calculate transit score using property coordinates
+    address = prop.get("formatted_address", "Unknown address")
+
+    # 2. Calculate and save score
     score_data = await save_transit_score_to_db(lat, lng, radius_meters)
 
-    # 3. Return enriched result with property info
     return {
         "property_id": property_id,
         "property_address": address,

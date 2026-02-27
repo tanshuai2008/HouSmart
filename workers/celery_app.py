@@ -1,3 +1,9 @@
+import sys
+import os
+
+# Add backend/ to path so we can import from app.*
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+
 from celery import Celery
 from app.core.config import settings
 
@@ -6,8 +12,8 @@ celery_app = Celery(
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     include=[
-        "app.workers.tasks.transit_tasks",
-        "app.workers.tasks.flood_tasks",
+        "workers.tasks.transit_tasks",
+        "workers.tasks.flood_tasks",
     ]
 )
 

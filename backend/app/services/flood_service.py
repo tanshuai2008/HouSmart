@@ -1,7 +1,10 @@
 import httpx
 import redis
 import json
+import logging
 from app.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 CACHE_TTL = 60 * 60 * 24 * 180  # 180 days
@@ -31,57 +34,54 @@ FLOOD_ZONE_MAP = {
     "D":    ("Undetermined Risk",                     50),
 }
 
-# ─── Dev mock: simulate realistic flood zones by lat/lng region ───────────────
-# Used when FEMA API is unreachable (e.g. non-US IP during local development).
-# Production (Render US servers) will always hit the real FEMA API.
+HIGH_RISK_ZONES = {"A", "AE", "AO", "AH", "A99", "AR", "VE", "V"}
+MODERATE_RISK_ZONES = {"X500", "B"}
+
+
 def _get_mock_flood_zone(lat: float, lng: float) -> str:
-    """
-    Returns a realistic mock flood zone based on geography.
-    Coastal/low-lying areas → high risk, inland/elevated → minimal risk.
-    """
-    # Gulf Coast / Louisiana (New Orleans area) → High Risk
+    """Geographic mock for non-US dev environments."""
     if 28.0 <= lat <= 31.0 and -92.0 <= lng <= -88.0:
-        return "AE"
-    # Florida coastal areas → High Risk
+        return "AE"   # Louisiana / New Orleans
     if 24.0 <= lat <= 27.0 and -82.0 <= lng <= -79.0:
-        return "VE"
-    # Houston / Texas Gulf Coast → High Risk
+        return "VE"   # Florida coast
     if 29.0 <= lat <= 30.5 and -96.0 <= lng <= -94.0:
-        return "AE"
-    # Pacific Northwest / Seattle → Minimal Risk
+        return "AE"   # Houston
     if 47.0 <= lat <= 48.5 and -123.0 <= lng <= -121.0:
-        return "X"
-    # General inland US → Minimal Risk
-    return "X"
+        return "X"    # Seattle
+    return "X"        # Default: minimal risk
 
 
 async def get_flood_zone(lat: float, lng: float) -> dict:
     """
-    Task 2 & 4: Query FEMA NFHL for flood zone at given lat/lng.
-    Falls back to geographic mock when FEMA API is unreachable (local dev).
+    Query FEMA NFHL for flood zone at given lat/lng.
+    Falls back to geographic mock when FEMA API is unreachable (local dev outside US).
+    Always returns a valid result — never raises.
     """
     cache_key = f"flood:{lat:.5f}:{lng:.5f}"
 
-    cached = redis_client.get(cache_key)
-    if cached:
-        return json.loads(cached)
+    # 1. Check Redis cache
+    try:
+        cached = redis_client.get(cache_key)
+        if cached:
+            return json.loads(cached)
+    except Exception as e:
+        logger.warning(f"Redis cache read failed: {e}")
 
     flood_data_unknown = False
     fld_zone = None
     used_mock = False
 
-    # Build bounding box query
-    params = {
-        "geometry": f"{lng-0.001},{lat-0.001},{lng+0.001},{lat+0.001}",
-        "geometryType": "esriGeometryEnvelope",
-        "inSR": "4326",
-        "spatialRel": "esriSpatialRelIntersects",
-        "outFields": "FLD_ZONE,ZONE_SUBTY",
-        "returnGeometry": "false",
-        "f": "json",
-    }
-
+    # 2. Try FEMA API
     try:
+        params = {
+            "geometry": f"{lng-0.001},{lat-0.001},{lng+0.001},{lat+0.001}",
+            "geometryType": "esriGeometryEnvelope",
+            "inSR": "4326",
+            "spatialRel": "esriSpatialRelIntersects",
+            "outFields": "FLD_ZONE,ZONE_SUBTY",
+            "returnGeometry": "false",
+            "f": "json",
+        }
         async with httpx.AsyncClient(
             timeout=15, headers=HEADERS, follow_redirects=True
         ) as client:
@@ -99,9 +99,9 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
         else:
             fld_zone = "X"  # No polygon = minimal risk
 
-    except Exception:
-        # FEMA unreachable (non-US IP, network issue, etc.)
-        # Use geographic mock for local dev — real data in production
+    except Exception as e:
+        # FEMA unreachable (non-US IP, timeout, etc.) — use geographic mock
+        logger.warning(f"FEMA API unavailable ({type(e).__name__}), using mock for lat={lat}, lng={lng}")
         fld_zone = _get_mock_flood_zone(lat, lng)
         used_mock = True
 
@@ -115,45 +115,59 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
         "risk_label": risk_label,
         "flood_score": float(flood_score),
         "flood_data_unknown": flood_data_unknown,
-        # Clearly flag when mock is used so team knows
-        "source": "FEMA NFHL (mock — FEMA unreachable from local dev)" if used_mock
-                  else "FEMA National Flood Hazard Layer (NFHL)",
+        "source": (
+            "FEMA NFHL (mock — FEMA unreachable from local dev)"
+            if used_mock
+            else "FEMA National Flood Hazard Layer (NFHL)"
+        ),
     }
 
-    redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+    # 3. Cache result
+    try:
+        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
+    except Exception as e:
+        logger.warning(f"Redis cache write failed: {e}")
+
     return result
 
 
 async def save_flood_zone_to_db(lat: float, lng: float) -> dict:
     """
-    Task 2 & 4: Import flood zone and save to flood_zones table in Supabase.
+    Import flood zone for a lat/lng and upsert into flood_zones table.
+    Handles duplicate key gracefully via on_conflict.
     """
     data = await get_flood_zone(lat, lng)
 
-    from app.core.supabase_client import supabase
+    try:
+        from app.core.supabase_client import supabase
+        row = {
+            "lat": lat,
+            "lng": lng,
+            "fld_zone": data["fld_zone"],
+            "risk_label": data["risk_label"],
+            "flood_score": data["flood_score"],
+            "flood_data_unknown": data["flood_data_unknown"],
+            "source": data["source"],
+        }
+        # on_conflict="lat,lng" handles duplicates — updates existing row
+        supabase.table("flood_zones").upsert(
+            row, on_conflict="lat,lng"
+        ).execute()
+    except Exception as e:
+        logger.error(f"DB upsert failed for flood zone lat={lat}, lng={lng}: {e}")
+        raise
 
-    row = {
-        "lat": lat,
-        "lng": lng,
-        "fld_zone": data["fld_zone"],
-        "risk_label": data["risk_label"],
-        "flood_score": data["flood_score"],
-        "flood_data_unknown": data["flood_data_unknown"],
-        "source": data["source"],
-    }
-
-    supabase.table("flood_zones").upsert(row).execute()
     return data
 
 
 async def check_flood_for_property(property_id: str) -> dict:
     """
     Task 4: Look up property from DB, check its flood zone,
-    and return whether it intersects a flood zone.
+    return whether it intersects a flood zone.
     """
     from app.core.supabase_client import supabase
 
-    # 1. Look up property coordinates
+    # 1. Look up property
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -163,34 +177,30 @@ async def check_flood_for_property(property_id: str) -> dict:
     )
 
     if not response.data:
-        raise ValueError(f"Property {property_id} not found")
+        raise ValueError(f"Property {property_id} not found in database")
 
     prop = response.data
-    lat = prop["latitude"]
-    lng = prop["longitude"]
+    lat = prop.get("latitude")
+    lng = prop.get("longitude")
 
-    if not lat or not lng:
-        raise ValueError(f"Property {property_id} has no coordinates")
+    if lat is None or lng is None:
+        raise ValueError(f"Property {property_id} has no coordinates (lat/lng is null)")
 
-    # 2. Get flood zone for this property
+    # 2. Get flood zone — upsert to DB
     flood_data = await save_flood_zone_to_db(lat, lng)
 
-    # 3. Determine if property intersects a flood zone
-    high_risk_zones = {"A", "AE", "AO", "AH", "A99", "AR", "VE", "V"}
-    moderate_risk_zones = {"X500", "B"}
-    in_flood_zone = flood_data["fld_zone"] in high_risk_zones
-    in_moderate_zone = flood_data["fld_zone"] in moderate_risk_zones
+    fld_zone = flood_data["fld_zone"]
 
     return {
         "property_id": property_id,
         "property_address": prop.get("formatted_address"),
         "property_lat": lat,
         "property_lng": lng,
-        "fld_zone": flood_data["fld_zone"],
+        "fld_zone": fld_zone,
         "risk_label": flood_data["risk_label"],
         "flood_score": flood_data["flood_score"],
-        "in_flood_zone": in_flood_zone,           # True if high risk zone
-        "in_moderate_zone": in_moderate_zone,     # True if moderate risk zone
+        "in_flood_zone": fld_zone in HIGH_RISK_ZONES,
+        "in_moderate_zone": fld_zone in MODERATE_RISK_ZONES,
         "flood_data_unknown": flood_data["flood_data_unknown"],
         "source": flood_data["source"],
     }
@@ -198,12 +208,11 @@ async def check_flood_for_property(property_id: str) -> dict:
 
 async def check_all_properties_flood_intersect() -> dict:
     """
-    Task 4 (bulk): Check ALL properties in DB and flag which ones
-    intersect high-risk flood zones.
+    Task 4 (bulk): Check ALL properties in DB against FEMA flood zones.
+    Skips properties with missing coordinates gracefully.
     """
     from app.core.supabase_client import supabase
 
-    # Fetch all properties with coordinates
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -212,28 +221,37 @@ async def check_all_properties_flood_intersect() -> dict:
 
     properties = response.data or []
     if not properties:
-        return {"total": 0, "results": [], "message": "No properties found in DB"}
+        return {
+            "total": 0,
+            "high_risk_count": 0,
+            "moderate_risk_count": 0,
+            "minimal_risk_count": 0,
+            "skipped_count": 0,
+            "results": [],
+            "message": "No properties found in database",
+        }
 
     results = []
     high_risk_count = 0
     moderate_risk_count = 0
     minimal_risk_count = 0
+    skipped_count = 0
 
     for prop in properties:
         lat = prop.get("latitude")
         lng = prop.get("longitude")
 
-        if not lat or not lng:
+        # Skip properties without coordinates
+        if lat is None or lng is None:
+            skipped_count += 1
+            logger.warning(f"Skipping property {prop.get('id')} — no coordinates")
             continue
 
         try:
             flood_data = await get_flood_zone(lat, lng)
             fld_zone = flood_data["fld_zone"]
-
-            high_risk_zones = {"A", "AE", "AO", "AH", "A99", "AR", "VE", "V"}
-            moderate_risk_zones = {"X500", "B"}
-            in_flood_zone = fld_zone in high_risk_zones
-            in_moderate_zone = fld_zone in moderate_risk_zones
+            in_flood_zone = fld_zone in HIGH_RISK_ZONES
+            in_moderate_zone = fld_zone in MODERATE_RISK_ZONES
 
             if in_flood_zone:
                 high_risk_count += 1
@@ -252,7 +270,9 @@ async def check_all_properties_flood_intersect() -> dict:
                 "in_moderate_zone": in_moderate_zone,
             })
 
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to check flood for property {prop.get('id')}: {e}")
+            skipped_count += 1
             continue
 
     return {
@@ -260,5 +280,6 @@ async def check_all_properties_flood_intersect() -> dict:
         "high_risk_count": high_risk_count,
         "moderate_risk_count": moderate_risk_count,
         "minimal_risk_count": minimal_risk_count,
+        "skipped_count": skipped_count,
         "results": results,
     }

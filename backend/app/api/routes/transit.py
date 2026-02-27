@@ -1,6 +1,11 @@
 from fastapi import APIRouter, HTTPException
 from app.api.schemas.transit import TransitStopImportRequest, TransitScoreResponse
-from app.services.transit_service import fetch_transit_stops, save_transit_stops_to_db
+from app.services.transit_service import (
+    fetch_transit_stops,
+    save_transit_stops_to_db,
+    save_transit_score_to_db,
+    save_transit_score_for_property,
+)
 
 router = APIRouter(prefix="/transit", tags=["Transit"])
 
@@ -22,27 +27,33 @@ async def import_transit_stops(request: TransitStopImportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/score", summary="Task 3 — Calculate transit score for a property")
+@router.get("/score", summary="Task 3 — Calculate transit distance & score by lat/lng")
 async def get_transit_score(lat: float, lng: float, radius_meters: int = 800):
     """
-    Returns the transit score (0–100) for a property location.
-    Counts bus stops and rail stations within the radius.
-    Includes distance to nearest stop.
+    Calculates distance to nearest transit stop and score (0-100) for a lat/lng.
+    Saves result to transit_scores table.
     """
     try:
-        result = await fetch_transit_stops(lat, lng, radius_meters)
-        return {
-            "status": "success",
-            "data": TransitScoreResponse(
-                property_lat=result["property_lat"],
-                property_lng=result["property_lng"],
-                radius_meters=result["radius_meters"],
-                bus_stop_count=result["bus_stop_count"],
-                rail_station_count=result["rail_station_count"],
-                transit_score=result["transit_score"],
-                nearest_stop_meters=result["nearest_stop_meters"],
-                source=result["source"],
-            )
-        }
+        result = await save_transit_score_to_db(lat, lng, radius_meters)
+        return {"status": "success", "data": result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get(
+    "/score/property/{property_id}",
+    summary="Task 3 — Calculate transit distance to nearest stop per property"
+)
+async def get_transit_score_for_property(property_id: str, radius_meters: int = 800):
+    """
+    Task 3 (main): Given a property_id, looks up the property lat/lng from
+    the properties table, calculates distance to nearest transit stop,
+    and saves the transit score to transit_scores table.
+    """
+    try:
+        result = await save_transit_score_for_property(property_id, radius_meters)
+        return {"status": "success", "data": result}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

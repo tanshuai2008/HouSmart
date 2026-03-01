@@ -1,0 +1,3 @@
+﻿app module: C:\Users\Asus\Desktop\HOUSMART\HouSmart\backend\app\__init__.py
+sys.path[0]: 
+median module: C:\Users\Asus\Desktop\HOUSMART\HouSmart\backend\app\services\median_house_price.py

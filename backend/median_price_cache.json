@@ -1,0 +1,587 @@
+{
+  "redfin_city:WA:seattle": {
+    "timestamp": 1772383616.6789865,
+    "data": {
+      "city": "Seattle",
+      "state": "WA",
+      "median_sale_price": 499900,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://huggingface.co/datasets/KJJ231/redfin-data/resolve/main/redfin_full.parquet"
+      }
+    }
+  },
+  "redfin_city:CA:san francisco": {
+    "timestamp": 1772035249.8792121,
+    "data": {
+      "city": "San Francisco",
+      "state": "CA",
+      "median_sale_price": 1550000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:CA:los angeles": {
+    "timestamp": 1772035283.988031,
+    "data": {
+      "city": "Los Angeles",
+      "state": "CA",
+      "median_sale_price": 1190000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:IL:chicago": {
+    "timestamp": 1772035317.8504398,
+    "data": {
+      "city": "Chicago",
+      "state": "IL",
+      "median_sale_price": 355000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:TX:austin": {
+    "timestamp": 1772035351.8500988,
+    "data": {
+      "city": "Austin",
+      "state": "TX",
+      "median_sale_price": 545000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:NY:new york": {
+    "timestamp": 1772036576.1995456,
+    "data": {
+      "city": "New York",
+      "state": "NY",
+      "median_sale_price": 1785000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/city_market_tracker.tsv000.gz",
+        "dataset": ""
+      }
+    }
+  },
+  "redfin_city:FL:miami": {
+    "timestamp": 1772035419.6342363,
+    "data": {
+      "city": "Miami",
+      "state": "FL",
+      "median_sale_price": 850000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:CO:denver": {
+    "timestamp": 1772035453.1213112,
+    "data": {
+      "city": "Denver",
+      "state": "CO",
+      "median_sale_price": 1564750,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "redfin_city:MA:boston": {
+    "timestamp": 1772036683.048671,
+    "data": {
+      "city": "Boston",
+      "state": "MA",
+      "median_sale_price": 790000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://redfin-public-data.s3.us-west-2.amazonaws.com/redfin_market_tracker/city_market_tracker.tsv000.gz",
+        "dataset": ""
+      }
+    }
+  },
+  "redfin_city:GA:atlanta": {
+    "timestamp": 1772035519.3684323,
+    "data": {
+      "city": "Atlanta",
+      "state": "GA",
+      "median_sale_price": 350000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "C:\\Users\\Asus\\Desktop\\PMA\\city_market_tracker.tsv000",
+        "dataset": "redfin_market_tracker/city_market_tracker.tsv000.gz"
+      }
+    }
+  },
+  "noise:47.6062:-122.3321": {
+    "timestamp": 1772208117.6831248,
+    "data": {
+      "noise_level": "Very High",
+      "distance_to_road_m": 12.6,
+      "method": "Estimated from nearest road distance",
+      "source": "OpenStreetMap"
+    }
+  },
+  "redfin_city:CA:san jose": {
+    "timestamp": 1772384041.0067616,
+    "data": {
+      "city": "San Jose",
+      "state": "CA",
+      "median_sale_price": 1512000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://huggingface.co/datasets/KJJ231/redfin-data/resolve/main/redfin_full.parquet"
+      }
+    }
+  },
+  "redfin_city:FL:orlando": {
+    "timestamp": 1772384271.4395278,
+    "data": {
+      "city": "Orlando",
+      "state": "FL",
+      "median_sale_price": 189000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://huggingface.co/datasets/KJJ231/redfin-data/resolve/main/redfin_full.parquet"
+      }
+    }
+  },
+  "noise:37.3297:-122.0099": {
+    "timestamp": 1772384792.5519428,
+    "data": {
+      "noise_level": "High",
+      "noise_score": 76.91,
+      "distance_to_road_m": 0.0,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 709,
+          "major_road_count": 82,
+          "total_road_length_m": 63927.8,
+          "nearest_road_distance_m": 0.0,
+          "nearest_major_road_distance_m": 119.8,
+          "nearest_roads": [
+            {
+              "highway": "service",
+              "name": null,
+              "distance_m": 0.0,
+              "length_m": 28.372996894567713
+            },
+            {
+              "highway": "service",
+              "name": null,
+              "distance_m": 0.0,
+              "length_m": 118.27216320691305
+            },
+            {
+              "highway": "unclassified",
+              "name": "Apple Park Way",
+              "distance_m": 7.7638219671695206,
+              "length_m": 76.72011120279252
+            },
+            {
+              "highway": "unclassified",
+              "name": "Apple Park Way",
+              "distance_m": 7.7638219671695206,
+              "length_m": 49.910338883418106
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 14.379704275678327,
+              "length_m": 114.12963634492883
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 0,
+          "nearest_airport_feature_distance_m": null
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": [
+            "retail",
+            "residential",
+            "commercial",
+            "construction",
+            "orchard",
+            "forest",
+            "basin",
+            "grass"
+          ]
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 30.0,
+        "major_road": 21.06,
+        "multi_roads": 3.85,
+        "road_density": 15.0,
+        "rail": 0.0,
+        "airport": 0.0,
+        "landuse": 7.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "noise:37.3304:-122.0082": {
+    "timestamp": 1772385052.2181778,
+    "data": {
+      "noise_level": "High",
+      "noise_score": 74.68,
+      "distance_to_road_m": 2.71,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 650,
+          "major_road_count": 54,
+          "total_road_length_m": 59047.5,
+          "nearest_road_distance_m": 2.71,
+          "nearest_major_road_distance_m": 197.58,
+          "nearest_roads": [
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 2.7092920210884714,
+              "length_m": 1234.0237914553297
+            },
+            {
+              "highway": "steps",
+              "name": null,
+              "distance_m": 44.8230584300948,
+              "length_m": 7.527686197744367
+            },
+            {
+              "highway": "cycleway",
+              "name": null,
+              "distance_m": 48.01159545372643,
+              "length_m": 119.10262531506196
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 52.272450823088825,
+              "length_m": 7.1271167361939
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 54.66308595823606,
+              "length_m": 71.41621664001136
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 0,
+          "nearest_airport_feature_distance_m": null
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": [
+            "retail",
+            "residential",
+            "commercial",
+            "orchard",
+            "forest",
+            "grass",
+            "basin"
+          ]
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 30.0,
+        "major_road": 17.65,
+        "multi_roads": 5.03,
+        "road_density": 15.0,
+        "rail": 0.0,
+        "airport": 0.0,
+        "landuse": 7.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "noise:36.0545:-112.1406": {
+    "timestamp": 1772385156.9173791,
+    "data": {
+      "noise_level": "Moderate",
+      "noise_score": 57.74,
+      "distance_to_road_m": 39.4,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 269,
+          "major_road_count": 0,
+          "total_road_length_m": 41639.0,
+          "nearest_road_distance_m": 39.4,
+          "nearest_major_road_distance_m": null,
+          "nearest_roads": [
+            {
+              "highway": "tertiary",
+              "name": "Village Loop Drive",
+              "distance_m": 39.40017348750426,
+              "length_m": 368.08765140351534
+            },
+            {
+              "highway": "cycleway",
+              "name": "Greenway",
+              "distance_m": 47.53638624964914,
+              "length_m": 173.19172907503486
+            },
+            {
+              "highway": "path",
+              "name": null,
+              "distance_m": 48.19695230254835,
+              "length_m": 138.14492325575512
+            },
+            {
+              "highway": "cycleway",
+              "name": "Greenway",
+              "distance_m": 48.19695230254835,
+              "length_m": 114.62193461888057
+            },
+            {
+              "highway": "service",
+              "name": null,
+              "distance_m": 54.01913175511975,
+              "length_m": 63.74129943230197
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 13,
+          "nearest_rail_distance_m": 178.8
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 0,
+          "nearest_airport_feature_distance_m": null
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": [
+            "farmland",
+            "commercial",
+            "residential"
+          ]
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 26.04,
+        "major_road": 0.0,
+        "multi_roads": 5.18,
+        "road_density": 15.0,
+        "rail": 7.52,
+        "airport": 0.0,
+        "landuse": 4.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "noise:44.3563:-68.2155": {
+    "timestamp": 1772385359.922561,
+    "data": {
+      "noise_level": "Low",
+      "noise_score": 37.43,
+      "distance_to_road_m": 65.25,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 14,
+          "major_road_count": 0,
+          "total_road_length_m": 10924.6,
+          "nearest_road_distance_m": 65.25,
+          "nearest_major_road_distance_m": null,
+          "nearest_roads": [
+            {
+              "highway": "path",
+              "name": "Schiff Path",
+              "distance_m": 65.25458799324478,
+              "length_m": 787.8093360613082
+            },
+            {
+              "highway": "path",
+              "name": "Dorr Mountain North Ridge Trail",
+              "distance_m": 70.3779096384736,
+              "length_m": 1385.234502038183
+            },
+            {
+              "highway": "path",
+              "name": "Dorr Mountain North Ridge Trail",
+              "distance_m": 91.84156928075241,
+              "length_m": 148.48815354182958
+            },
+            {
+              "highway": "path",
+              "name": "Cadillac-Dorr Connector",
+              "distance_m": 91.84156928075241,
+              "length_m": 249.56962005317035
+            },
+            {
+              "highway": "path",
+              "name": "Dorr Mountain South Ridge Trail",
+              "distance_m": 184.68266861589348,
+              "length_m": 1953.5230616348588
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 0,
+          "nearest_airport_feature_distance_m": null
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": []
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 21.85,
+        "major_road": 0.0,
+        "multi_roads": 4.41,
+        "road_density": 11.17,
+        "rail": 0.0,
+        "airport": 0.0,
+        "landuse": 0.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "noise:42.2603:-70.8968": {
+    "timestamp": 1772385409.6587827,
+    "data": {
+      "noise_level": "Moderate",
+      "noise_score": 47.38,
+      "distance_to_road_m": 9.46,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 42,
+          "major_road_count": 0,
+          "total_road_length_m": 9560.9,
+          "nearest_road_distance_m": 9.46,
+          "nearest_major_road_distance_m": null,
+          "nearest_roads": [
+            {
+              "highway": "residential",
+              "name": "Cushing Avenue",
+              "distance_m": 9.46080479289652,
+              "length_m": 286.9593187902895
+            },
+            {
+              "highway": "residential",
+              "name": "Sumner Street",
+              "distance_m": 73.94756508541431,
+              "length_m": 171.22345098194387
+            },
+            {
+              "highway": "residential",
+              "name": "Mann Street",
+              "distance_m": 82.6070454053454,
+              "length_m": 243.29167217459843
+            },
+            {
+              "highway": "residential",
+              "name": "Malcolm Street",
+              "distance_m": 103.71224754142365,
+              "length_m": 169.89612705359184
+            },
+            {
+              "highway": "residential",
+              "name": "Marion Street",
+              "distance_m": 105.87787670711383,
+              "length_m": 215.95725993035464
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 0,
+          "nearest_airport_feature_distance_m": null
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": []
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 30.0,
+        "major_road": 0.0,
+        "multi_roads": 3.88,
+        "road_density": 13.5,
+        "rail": 0.0,
+        "airport": 0.0,
+        "landuse": 0.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  }
+}

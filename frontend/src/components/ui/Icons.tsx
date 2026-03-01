@@ -234,3 +234,29 @@ export const LockIcon = (props: React.SVGProps<SVGSVGElement>) => (
         />
     </svg>
 );
+
+export const UserIcon = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg
+        width="16"
+        height="16"
+        viewBox="0 0 16 16"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        {...props}
+    >
+        <path
+            d="M8 8C9.84095 8 11.3333 6.50761 11.3333 4.66667C11.3333 2.82572 9.84095 1.33333 8 1.33333C6.15905 1.33333 4.66667 2.82572 4.66667 4.66667C4.66667 6.50761 6.15905 8 8 8Z"
+            stroke="currentColor"
+            strokeWidth="1.33306"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+        <path
+            d="M3.33333 14.6667C3.33333 12.0893 5.38556 10 8 10C10.6144 10 12.6667 12.0893 12.6667 14.6667"
+            stroke="currentColor"
+            strokeWidth="1.33306"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+        />
+    </svg>
+);

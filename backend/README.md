@@ -1,7 +1,8 @@
 # HouSmart — Transit & Flood Risk Pipeline
 
-> **Branch:** `feature/transit-stop-import` · `feature/flood-polygon-import` · `feature/transit-distance-calculation` · `feature/property-flood-intersect`
+> **Assigned to:** Boukhelkhal Imene
 > **Variables:** 9 (Transit Score) · 10 (Flood Risk)
+> **Branches:** `feature/transit-stop-import` · `feature/flood-polygon-import` · `feature/transit-distance-calculation` · `feature/property-flood-intersect`
 
 ---
 
@@ -22,10 +23,10 @@ This module implements the **Transit Score** and **Flood Risk** data pipelines f
 
 | Variable | Source | Cost | Auth |
 |---|---|---|---|
-| Transit stops | OpenStreetMap Overpass API | FREE | None |
+| Transit stops | OpenStreetMap Overpass API (3 mirror fallbacks) | FREE | None |
 | Flood zones | FEMA National Flood Hazard Layer (NFHL) | FREE | None |
 
-> **Note:** FEMA API requires a US-based IP. A geographic mock is used for local development outside the US. The mock is automatically replaced by real FEMA data in production (Render US servers).
+> **Note on FEMA API:** FEMA blocks non-US IP addresses. A geographic mock is used for local development outside the US. The code always tries the real FEMA API first — if it fails it falls back to the mock automatically. Production on Render (US servers) will use real FEMA data with no code or config changes needed.
 
 ---
 
@@ -41,8 +42,8 @@ backend/app/
 │       ├── transit.py          # Pydantic request/response models
 │       └── flood.py            # Pydantic request/response models
 └── services/
-    ├── transit_service.py      # OSM Overpass, Haversine distance, scoring
-    └── flood_service.py        # FEMA API, zone mapping, scoring
+    ├── transit_service.py      # OSM Overpass, Haversine distance, scoring, caching
+    └── flood_service.py        # FEMA API, zone mapping, scoring, caching
 
 workers/                        # Celery background tasks (pipeline integration)
 ├── celery_app.py
@@ -63,7 +64,7 @@ CREATE TABLE transit_stops (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     osm_id TEXT UNIQUE NOT NULL,
     name TEXT,
-    stop_type TEXT,       -- bus_stop, station, subway_entrance
+    stop_type TEXT,       -- bus_stop, station, subway_entrance, tram_stop
     lat DOUBLE PRECISION,
     lng DOUBLE PRECISION,
     created_at TIMESTAMP DEFAULT NOW()
@@ -97,15 +98,43 @@ CREATE TABLE flood_zones (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     lat DOUBLE PRECISION NOT NULL,
     lng DOUBLE PRECISION NOT NULL,
-    fld_zone TEXT,          -- AE, X, VE, etc.
+    fld_zone TEXT,               -- AE, X, VE, etc.
     risk_label TEXT,
-    flood_score DOUBLE PRECISION,   -- 0-100 (100 = safest)
+    flood_score DOUBLE PRECISION,    -- 0-100 (100 = safest)
     flood_data_unknown BOOLEAN DEFAULT FALSE,
     source TEXT,
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE (lat, lng)
 );
 ```
+
+### `transit_cache`
+Supabase cache for Variable 9 transit data. TTL: 30 days.
+
+```sql
+CREATE TABLE transit_cache (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_transit_cache_expires ON transit_cache (expires_at);
+```
+
+### `flood_risk_cache`
+Supabase cache for Variable 10 flood data. TTL: 180 days.
+
+```sql
+CREATE TABLE flood_risk_cache (
+    key TEXT PRIMARY KEY,
+    value JSONB NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_flood_risk_cache_expires ON flood_risk_cache (expires_at);
+```
+
+---
 
 ## Scoring Logic
 
@@ -134,14 +163,16 @@ Default radius: **800m** (WMATA/APTA walkable transit standard). Rail stations g
 
 ---
 
-## Caching (Redis)
+## Caching (Supabase)
 
-| Data | TTL | Reason |
-|---|---|---|
-| Transit stops/scores | 30 days | Transit infrastructure changes slowly |
-| Flood zones | 180 days | FEMA maps updated infrequently |
+Caching is handled directly inside `transit_service.py` and `flood_service.py` using two dedicated Supabase tables — no Redis required.
 
-Cache failures are caught and logged — the app continues without cache if Redis is unavailable.
+| Table | Variable | TTL | Reason |
+|---|---|---|---|
+| `transit_cache` | Transit Score | 30 days | Transit infrastructure changes slowly |
+| `flood_risk_cache` | Flood Risk | 180 days | FEMA maps updated infrequently |
+
+Cache failures are caught and logged — the app falls through to the real API if the cache is unavailable.
 
 ---
 
@@ -253,6 +284,7 @@ Scans all properties in DB and returns a flood risk summary.
     "high_risk_count": 1,
     "moderate_risk_count": 0,
     "minimal_risk_count": 17,
+    "skipped_count": 0,
     "results": [...]
   }
 }
@@ -263,18 +295,17 @@ Scans all properties in DB and returns a flood risk summary.
 ## Running Locally
 
 ```bash
-# Terminal 1 — Redis
-redis-server
-
-# Terminal 2 — Backend
+# Terminal 1 — Backend
 cd backend && source venv/bin/activate
 uvicorn app.main:app --reload
 # Swagger UI → http://127.0.0.1:8000/docs
 
-# Terminal 3 — Celery workers
-source backend/venv/bin/activate
+# Terminal 2 — Celery workers
+cd HouSmart && source backend/venv/bin/activate
 celery -A workers.celery_app worker --loglevel=info
 ```
+
+> Redis is no longer required locally. Caching is handled via Supabase.
 
 ---
 
@@ -288,13 +319,13 @@ celery -A workers.celery_app worker --loglevel=info
 | Overpass timeout | Auto-retries across 3 mirror servers |
 | FEMA blocked (non-US IP) | Falls back to geographic mock |
 | Duplicate DB insert | Handled via `upsert on_conflict` |
-| Redis down | Caught and logged, app continues |
+| Cache unavailable | Caught and logged, falls through to API |
 | Property missing coordinates | Skipped gracefully in bulk scan |
 
 ---
 
 ## Known Limitations
 
-- **FEMA API** is blocked from non-US IP addresses. A geographic mock is used for local development. Production deployment on Render (US) will use real FEMA data automatically.
+- **FEMA API** is blocked from non-US IP addresses. A geographic mock is used for local development. Production deployment on Render (US) will use real FEMA data automatically — no config changes needed.
 - **Overpass API** can time out under heavy load. Three mirror servers are tried in sequence as fallback.
 - Transit score uses **stop count proxy** for MVP. Post-MVP improvement: parse `stop_times.txt` from GTFS feeds to compute average headways for more accurate service quality scoring.

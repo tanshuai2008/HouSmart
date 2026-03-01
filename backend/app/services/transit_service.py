@@ -1,17 +1,15 @@
 import httpx
 import math
-import redis
 import json
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from app.core.config import settings
+from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
-redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 CACHE_TTL = 60 * 60 * 24 * 30  # 30 days
 
-# Multiple Overpass mirrors — tried in order if one times out
 OVERPASS_MIRRORS = [
     "https://overpass-api.de/api/interpreter",
     "https://overpass.kumi.systems/api/interpreter",
@@ -66,20 +64,52 @@ def _compute_transit_score(bus_count: int, rail_count: int) -> float:
     return float(base_score)
 
 
+def _cache_get(cache_key: str) -> Optional[dict]:
+    """Read from transit_cache. Returns None if missing, expired, or on any error."""
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        response = (
+            supabase.table("transit_cache")
+            .select("value")
+            .eq("key", cache_key)
+            .gt("expires_at", now)
+            .single()
+            .execute()
+        )
+        if response.data:
+            logger.info(f"Cache HIT: {cache_key}")
+            return response.data["value"]
+    except Exception as e:
+        logger.warning(f"Transit cache GET failed: {e}")
+    return None
+
+
+def _cache_set(cache_key: str, value: dict) -> None:
+    """Write to transit_cache. Silently skips on any error."""
+    try:
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(seconds=CACHE_TTL)
+        ).isoformat()
+        supabase.table("transit_cache").upsert({
+            "key": cache_key,
+            "value": value,
+            "expires_at": expires_at,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Transit cache SET failed: {e}")
+
+
 async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) -> dict:
     """
     Fetch transit stops from OSM Overpass within radius.
-    Tries multiple mirrors. Results cached in Redis for 30 days.
+    Tries multiple mirrors. Results cached in transit_cache for 30 days.
     """
     cache_key = f"transit:{lat:.4f}:{lng:.4f}:{radius_meters}"
 
-    # 1. Check Redis cache
-    try:
-        cached = redis_client.get(cache_key)
-        if cached:
-            return json.loads(cached)
-    except Exception as e:
-        logger.warning(f"Redis cache read failed: {e}")
+    # 1. Check Supabase cache
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
 
     # 2. Query Overpass — try each mirror
     query = _build_overpass_query(lat, lng, radius_meters)
@@ -92,7 +122,6 @@ async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) 
                 response = await client.post(mirror, data={"data": query})
                 response.raise_for_status()
                 data = response.json()
-                # Validate response has expected structure
                 if "elements" not in data:
                     raise ValueError(f"Unexpected Overpass response structure: {list(data.keys())}")
                 logger.info(f"Overpass responded from mirror: {mirror}")
@@ -150,11 +179,8 @@ async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) 
         "source": "OpenStreetMap (Overpass API)",
     }
 
-    # 4. Cache result
-    try:
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    except Exception as e:
-        logger.warning(f"Redis cache write failed: {e}")
+    # 4. Save to Supabase cache
+    _cache_set(cache_key, result)
 
     return result
 
@@ -175,8 +201,6 @@ async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 
             "nearest_stop_meters": data["nearest_stop_meters"],
         }
 
-    from app.core.supabase_client import supabase
-
     rows = [
         {
             "osm_id": s["osm_id"],
@@ -189,10 +213,7 @@ async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 
     ]
 
     try:
-        # on_conflict="osm_id" handles duplicates — updates existing rows
-        supabase.table("transit_stops").upsert(
-            rows, on_conflict="osm_id"
-        ).execute()
+        supabase.table("transit_stops").upsert(rows, on_conflict="osm_id").execute()
     except Exception as e:
         logger.error(f"DB upsert failed for transit stops: {e}")
         raise
@@ -212,8 +233,6 @@ async def save_transit_score_to_db(lat: float, lng: float, radius_meters: int = 
     Handles duplicates via on_conflict="property_lat,property_lng".
     """
     data = await fetch_transit_stops(lat, lng, radius_meters)
-
-    from app.core.supabase_client import supabase
 
     row = {
         "property_lat": lat,
@@ -252,9 +271,6 @@ async def save_transit_score_for_property(
     Task 3 (main): Look up property coordinates from DB,
     calculate distance to nearest transit stop, save score.
     """
-    from app.core.supabase_client import supabase
-
-    # 1. Look up property
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -273,13 +289,10 @@ async def save_transit_score_for_property(
     if lat is None or lng is None:
         raise ValueError(f"Property {property_id} has no coordinates (lat/lng is null)")
 
-    address = prop.get("formatted_address", "Unknown address")
-
-    # 2. Calculate and save score
     score_data = await save_transit_score_to_db(lat, lng, radius_meters)
 
     return {
         "property_id": property_id,
-        "property_address": address,
+        "property_address": prop.get("formatted_address", "Unknown address"),
         **score_data,
     }

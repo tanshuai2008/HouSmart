@@ -30,7 +30,7 @@ async def import_flood_zone(request: FloodCheckRequest):
 async def check_flood_zone(lat: float, lng: float):
     """
     Returns FEMA flood zone and risk score (0-100) for a lat/lng.
-    Uses Redis cache. Does NOT write to DB (read-only).
+    Uses Supabase cache (flood_risk_cache). Does NOT write to DB (read-only).
     """
     if not (-90 <= lat <= 90):
         raise HTTPException(status_code=422, detail="lat must be between -90 and 90")

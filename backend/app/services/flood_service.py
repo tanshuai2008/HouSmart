@@ -1,12 +1,11 @@
 import httpx
-import redis
-import json
 import logging
-from app.core.config import settings
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from app.core.supabase_client import supabase
 
 logger = logging.getLogger(__name__)
 
-redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 CACHE_TTL = 60 * 60 * 24 * 180  # 180 days
 
 FEMA_QUERY_URL = (
@@ -41,14 +40,49 @@ MODERATE_RISK_ZONES = {"X500", "B"}
 def _get_mock_flood_zone(lat: float, lng: float) -> str:
     """Geographic mock for non-US dev environments."""
     if 28.0 <= lat <= 31.0 and -92.0 <= lng <= -88.0:
-        return "AE"   # Louisiana / New Orleans
+        return "AE"
     if 24.0 <= lat <= 27.0 and -82.0 <= lng <= -79.0:
-        return "VE"   # Florida coast
+        return "VE"
     if 29.0 <= lat <= 30.5 and -96.0 <= lng <= -94.0:
-        return "AE"   # Houston
+        return "AE"
     if 47.0 <= lat <= 48.5 and -123.0 <= lng <= -121.0:
-        return "X"    # Seattle
-    return "X"        # Default: minimal risk
+        return "X"
+    return "X"
+
+
+def _cache_get(cache_key: str) -> Optional[dict]:
+    """Read from flood_risk_cache. Returns None if missing, expired, or on any error."""
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        response = (
+            supabase.table("flood_risk_cache")
+            .select("value")
+            .eq("key", cache_key)
+            .gt("expires_at", now)
+            .single()
+            .execute()
+        )
+        if response.data:
+            logger.info(f"Cache HIT: {cache_key}")
+            return response.data["value"]
+    except Exception as e:
+        logger.warning(f"Flood cache GET failed: {e}")
+    return None
+
+
+def _cache_set(cache_key: str, value: dict) -> None:
+    """Write to flood_risk_cache. Silently skips on any error."""
+    try:
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(seconds=CACHE_TTL)
+        ).isoformat()
+        supabase.table("flood_risk_cache").upsert({
+            "key": cache_key,
+            "value": value,
+            "expires_at": expires_at,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Flood cache SET failed: {e}")
 
 
 async def get_flood_zone(lat: float, lng: float) -> dict:
@@ -59,13 +93,10 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
     """
     cache_key = f"flood:{lat:.5f}:{lng:.5f}"
 
-    # 1. Check Redis cache
-    try:
-        cached = redis_client.get(cache_key)
-        if cached:
-            return json.loads(cached)
-    except Exception as e:
-        logger.warning(f"Redis cache read failed: {e}")
+    # 1. Check Supabase cache
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
 
     flood_data_unknown = False
     fld_zone = None
@@ -97,10 +128,9 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
             if fld_zone == "X" and "0.2" in subtype:
                 fld_zone = "X500"
         else:
-            fld_zone = "X"  # No polygon = minimal risk
+            fld_zone = "X"
 
     except Exception as e:
-        # FEMA unreachable (non-US IP, timeout, etc.) — use geographic mock
         logger.warning(f"FEMA API unavailable ({type(e).__name__}), using mock for lat={lat}, lng={lng}")
         fld_zone = _get_mock_flood_zone(lat, lng)
         used_mock = True
@@ -122,11 +152,8 @@ async def get_flood_zone(lat: float, lng: float) -> dict:
         ),
     }
 
-    # 3. Cache result
-    try:
-        redis_client.setex(cache_key, CACHE_TTL, json.dumps(result))
-    except Exception as e:
-        logger.warning(f"Redis cache write failed: {e}")
+    # 3. Save to Supabase cache
+    _cache_set(cache_key, result)
 
     return result
 
@@ -139,7 +166,6 @@ async def save_flood_zone_to_db(lat: float, lng: float) -> dict:
     data = await get_flood_zone(lat, lng)
 
     try:
-        from app.core.supabase_client import supabase
         row = {
             "lat": lat,
             "lng": lng,
@@ -149,10 +175,7 @@ async def save_flood_zone_to_db(lat: float, lng: float) -> dict:
             "flood_data_unknown": data["flood_data_unknown"],
             "source": data["source"],
         }
-        # on_conflict="lat,lng" handles duplicates — updates existing row
-        supabase.table("flood_zones").upsert(
-            row, on_conflict="lat,lng"
-        ).execute()
+        supabase.table("flood_zones").upsert(row, on_conflict="lat,lng").execute()
     except Exception as e:
         logger.error(f"DB upsert failed for flood zone lat={lat}, lng={lng}: {e}")
         raise
@@ -165,9 +188,6 @@ async def check_flood_for_property(property_id: str) -> dict:
     Task 4: Look up property from DB, check its flood zone,
     return whether it intersects a flood zone.
     """
-    from app.core.supabase_client import supabase
-
-    # 1. Look up property
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -186,9 +206,7 @@ async def check_flood_for_property(property_id: str) -> dict:
     if lat is None or lng is None:
         raise ValueError(f"Property {property_id} has no coordinates (lat/lng is null)")
 
-    # 2. Get flood zone — upsert to DB
     flood_data = await save_flood_zone_to_db(lat, lng)
-
     fld_zone = flood_data["fld_zone"]
 
     return {
@@ -211,8 +229,6 @@ async def check_all_properties_flood_intersect() -> dict:
     Task 4 (bulk): Check ALL properties in DB against FEMA flood zones.
     Skips properties with missing coordinates gracefully.
     """
-    from app.core.supabase_client import supabase
-
     response = (
         supabase.table("properties")
         .select("id, formatted_address, latitude, longitude")
@@ -241,7 +257,6 @@ async def check_all_properties_flood_intersect() -> dict:
         lat = prop.get("latitude")
         lng = prop.get("longitude")
 
-        # Skip properties without coordinates
         if lat is None or lng is None:
             skipped_count += 1
             logger.warning(f"Skipping property {prop.get('id')} — no coordinates")

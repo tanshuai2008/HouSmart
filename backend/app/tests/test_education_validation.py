@@ -1,3 +1,4 @@
+# HouSmart/backend/app/tests/test_education_validation.py
 import requests
 import pytest
 from app.core.config import settings
@@ -55,6 +56,7 @@ def validate_education_metric(tract_geoid: str):
     "36061007600",
     "36061012200",
 ])
+
 def test_validate_education_metric(tract_geoid):
 
     result = validate_education_metric(tract_geoid)
@@ -62,3 +64,18 @@ def test_validate_education_metric(tract_geoid):
     assert "computed_pct" in result
     assert "stored_pct" in result
     assert result["match"] is True
+
+
+if __name__ == "__main__":
+    sample_tracts = [
+        "36061007600",  # 350 5TH AVE, NEW YORK, NY
+        "36061012200",  # NEW YORK
+        "34039035100",  # 1 N WOOD AVE, LINDEN, NJ
+        "11001980000",  # 1600 PENNSYLVANIA AVE, WASHINGTON DC
+    ]
+
+    for tract in sample_tracts:
+        print(f"\nTesting tract: {tract}")
+        print("-" * 20)
+        result = validate_education_metric(tract)
+        print(result)

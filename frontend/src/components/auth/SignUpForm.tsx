@@ -123,7 +123,7 @@ export const SignUpForm = () => {
                     <div className="w-full flex justify-center items-center font-medium text-[11px] leading-[16px] text-[#6A7282]">
                         Already have an account?{" "}
                         <Link
-                            href="/login"
+                            href="/auth/login"
                             className="font-semibold text-[#101828] ml-1 hover:underline"
                         >
                             Sign in

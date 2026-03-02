@@ -1,3 +1,4 @@
+# HouSmart/backend/app/core/supabase_client.py
 from supabase import create_client
 from app.core.config import settings
 

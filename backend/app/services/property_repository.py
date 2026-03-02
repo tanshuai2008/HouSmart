@@ -1,3 +1,4 @@
+# HouSmart/backend/app/services/property_repository.py
 from app.core.supabase_client import supabase
 
 

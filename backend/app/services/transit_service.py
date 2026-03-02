@@ -1,0 +1,294 @@
+import httpx
+import math
+import logging
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+from app.core.supabase_client import supabase
+from app.core.config import settings
+
+logger = logging.getLogger(__name__)
+
+OVERPASS_MIRRORS = [m.strip() for m in settings.OVERPASS_MIRRORS.split(",") if m.strip()]
+
+SCORE_RUBRIC = [
+    (20, 2, 95),
+    (15, 1, 85),
+    (10, 1, 75),
+    (8,  0, 65),
+    (5,  0, 50),
+    (3,  0, 35),
+    (1,  0, 20),
+    (0,  0, 5),
+]
+
+
+def _build_overpass_query(lat: float, lng: float, radius_meters: int) -> str:
+    return (
+        f"[out:json][timeout:{settings.OVERPASS_QUERY_TIMEOUT_SECONDS}];"
+        f"("
+        f'node["highway"="bus_stop"](around:{radius_meters},{lat},{lng});'
+        f'node["public_transport"="stop_position"](around:{radius_meters},{lat},{lng});'
+        f'node["railway"="station"](around:{radius_meters},{lat},{lng});'
+        f'node["railway"="subway_entrance"](around:{radius_meters},{lat},{lng});'
+        f'node["railway"="tram_stop"](around:{radius_meters},{lat},{lng});'
+        f'node["railway"="halt"](around:{radius_meters},{lat},{lng});'
+        f");"
+        f"out body;"
+    )
+
+
+def _haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    R = 6371000
+    phi1, phi2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lng2 - lng1)
+    a = (math.sin(dphi / 2) ** 2
+         + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2)
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def _compute_transit_score(bus_count: int, rail_count: int) -> float:
+    base_score = 5
+    for min_bus, min_rail, score in SCORE_RUBRIC:
+        if bus_count >= min_bus and rail_count >= min_rail:
+            base_score = score
+            break
+    if rail_count > 0:
+        base_score = min(100, base_score + 15)
+    return float(base_score)
+
+
+def _cache_get(cache_key: str) -> Optional[dict]:
+    """Read from transit_cache. Returns None if missing, expired, or on any error."""
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+        response = (
+            supabase.table("transit_cache")
+            .select("value")
+            .eq("key", cache_key)
+            .gt("expires_at", now)
+            .single()
+            .execute()
+        )
+        if response.data:
+            logger.info(f"Cache HIT: {cache_key}")
+            return response.data["value"]
+    except Exception as e:
+        logger.warning(f"Transit cache GET failed: {e}")
+    return None
+
+
+def _cache_set(cache_key: str, value: dict) -> None:
+    """Write to transit_cache. Silently skips on any error."""
+    try:
+        expires_at = (
+            datetime.now(timezone.utc) + timedelta(seconds=settings.TRANSIT_CACHE_TTL_SECONDS)
+        ).isoformat()
+        supabase.table("transit_cache").upsert({
+            "key": cache_key,
+            "value": value,
+            "expires_at": expires_at,
+        }).execute()
+    except Exception as e:
+        logger.warning(f"Transit cache SET failed: {e}")
+
+
+async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) -> dict:
+    """
+    Fetch transit stops from OSM Overpass within radius.
+    Tries multiple mirrors. Results cached in transit_cache for 30 days.
+    """
+    cache_key = f"transit:{lat:.4f}:{lng:.4f}:{radius_meters}"
+
+    # 1. Check Supabase cache
+    cached = _cache_get(cache_key)
+    if cached:
+        return cached
+
+    # 2. Query Overpass — try each mirror
+    query = _build_overpass_query(lat, lng, radius_meters)
+    data = None
+    last_error = None
+
+    async with httpx.AsyncClient(timeout=settings.OVERPASS_HTTP_TIMEOUT_SECONDS) as client:
+        for mirror in OVERPASS_MIRRORS:
+            try:
+                response = await client.post(mirror, data={"data": query})
+                response.raise_for_status()
+                data = response.json()
+                if "elements" not in data:
+                    raise ValueError(f"Unexpected Overpass response structure: {list(data.keys())}")
+                logger.info(f"Overpass responded from mirror: {mirror}")
+                break
+            except Exception as e:
+                logger.warning(f"Overpass mirror {mirror} failed: {type(e).__name__}")
+                last_error = e
+                continue
+
+    if data is None:
+        raise Exception(f"All Overpass mirrors failed. Last error: {last_error}")
+
+    # 3. Parse stops
+    elements = data.get("elements", [])
+    stops = []
+    bus_count = 0
+    rail_count = 0
+    nearest_meters: Optional[float] = None
+
+    for el in elements:
+        el_lat = el.get("lat")
+        el_lng = el.get("lon")
+        if el_lat is None or el_lng is None:
+            continue
+
+        tags = el.get("tags", {})
+        stop_type = "bus_stop"
+        if tags.get("railway") in ("station", "subway_entrance", "halt"):
+            stop_type = tags["railway"]
+            rail_count += 1
+        else:
+            bus_count += 1
+
+        dist = _haversine_meters(lat, lng, el_lat, el_lng)
+        if nearest_meters is None or dist < nearest_meters:
+            nearest_meters = dist
+
+        stops.append({
+            "osm_id": str(el.get("id")),
+            "name": tags.get("name"),
+            "stop_type": stop_type,
+            "lat": el_lat,
+            "lng": el_lng,
+        })
+
+    result = {
+        "property_lat": lat,
+        "property_lng": lng,
+        "radius_meters": radius_meters,
+        "bus_stop_count": bus_count,
+        "rail_station_count": rail_count,
+        "transit_score": _compute_transit_score(bus_count, rail_count),
+        "nearest_stop_meters": round(nearest_meters, 1) if nearest_meters else None,
+        "stops": stops,
+        "source": "OpenStreetMap (Overpass API)",
+    }
+
+    # 4. Save to Supabase cache
+    _cache_set(cache_key, result)
+
+    return result
+
+
+async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
+    """
+    Task 1: Fetch stops from OSM and upsert into transit_stops table.
+    Handles duplicates via on_conflict="osm_id".
+    """
+    data = await fetch_transit_stops(lat, lng, radius_meters)
+    stops = data.get("stops", [])
+
+    if not stops:
+        return {
+            "inserted": 0,
+            "message": "No transit stops found within radius",
+            "transit_score": data["transit_score"],
+            "nearest_stop_meters": data["nearest_stop_meters"],
+        }
+
+    rows = [
+        {
+            "osm_id": s["osm_id"],
+            "name": s["name"],
+            "stop_type": s["stop_type"],
+            "lat": s["lat"],
+            "lng": s["lng"],
+        }
+        for s in stops
+    ]
+
+    try:
+        supabase.table("transit_stops").upsert(rows, on_conflict="osm_id").execute()
+    except Exception as e:
+        logger.error(f"DB upsert failed for transit stops: {e}")
+        raise
+
+    return {
+        "inserted": len(rows),
+        "transit_score": data["transit_score"],
+        "bus_stops": data["bus_stop_count"],
+        "rail_stations": data["rail_station_count"],
+        "nearest_stop_meters": data["nearest_stop_meters"],
+    }
+
+
+async def save_transit_score_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
+    """
+    Task 3: Calculate transit score and upsert into transit_scores table.
+    Handles duplicates via on_conflict="property_lat,property_lng".
+    """
+    data = await fetch_transit_stops(lat, lng, radius_meters)
+
+    row = {
+        "property_lat": lat,
+        "property_lng": lng,
+        "radius_meters": radius_meters,
+        "bus_stop_count": data["bus_stop_count"],
+        "rail_station_count": data["rail_station_count"],
+        "nearest_stop_meters": data["nearest_stop_meters"],
+        "transit_score": data["transit_score"],
+        "source": data["source"],
+    }
+
+    try:
+        supabase.table("transit_scores").upsert(
+            row, on_conflict="property_lat,property_lng"
+        ).execute()
+    except Exception as e:
+        logger.error(f"DB upsert failed for transit score: {e}")
+        raise
+
+    return {
+        "property_lat": lat,
+        "property_lng": lng,
+        "radius_meters": radius_meters,
+        "nearest_stop_meters": data["nearest_stop_meters"],
+        "transit_score": data["transit_score"],
+        "bus_stop_count": data["bus_stop_count"],
+        "rail_station_count": data["rail_station_count"],
+        "source": data["source"],
+    }
+
+
+async def save_transit_score_for_property(
+    property_id: str, radius_meters: int = 800
+) -> dict:
+    """
+    Task 3 (main): Look up property coordinates from DB,
+    calculate distance to nearest transit stop, save score.
+    """
+    response = (
+        supabase.table("properties")
+        .select("id, formatted_address, latitude, longitude")
+        .eq("id", property_id)
+        .single()
+        .execute()
+    )
+
+    if not response.data:
+        raise ValueError(f"Property {property_id} not found in database")
+
+    prop = response.data
+    lat = prop.get("latitude")
+    lng = prop.get("longitude")
+
+    if lat is None or lng is None:
+        raise ValueError(f"Property {property_id} has no coordinates (lat/lng is null)")
+
+    score_data = await save_transit_score_to_db(lat, lng, radius_meters)
+
+    return {
+        "property_id": property_id,
+        "property_address": prop.get("formatted_address", "Unknown address"),
+        **score_data,
+    }
+

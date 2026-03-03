@@ -1,8 +1,10 @@
 # HouSmart/backend/app/services/property_repository.py
 from app.core.supabase_client import supabase
 
-
 class PropertyRepository:
+
+    def __init__(self):
+        self.db = supabase
 
     @staticmethod
     def create_property(data: dict):
@@ -26,3 +28,14 @@ class PropertyRepository:
             return response.data[0]
 
         return None
+    
+    # Retrieve a property by its ID
+    def get_by_id(self, property_id):
+
+        response = self.db.table("properties") \
+            .select("*") \
+            .eq("id", property_id) \
+            .single() \
+            .execute()
+
+        return response.data if response.data else None

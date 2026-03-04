@@ -9,6 +9,9 @@ class EvaluationService:
         self.property_repo = PropertyRepository()
 
     def run_location_stage(self, property_id):
+        """
+        Retrieves a property by ID and calculates location intelligence scores based on nearby POIs.
+        """
 
         property = self.property_repo.get_by_id(property_id)
 

@@ -11,11 +11,18 @@ class POIService:
         self.fetch_service = OSMFetchService()
 
     def _calculate_score(self, count: int, threshold: int, weight: float) -> float:
+        """
+        Computes a normalized score for a category based on POI count, threshold, and weight.
+        """
+
         ratio = min(count / threshold, 1.0)
         return round(ratio * weight, 4)
 
     def compute_all_categories(self, latitude: float, longitude: float) -> Dict:
-    
+        """
+        Fetches POIs if not cached, counts category occurrences within defined radii, and returns weighted scores with a composite score.
+        """
+        
         results = {}
         total_score = 0.0
     

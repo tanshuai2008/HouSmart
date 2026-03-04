@@ -13,6 +13,9 @@ class POICategory:
 
 
 POI_CATEGORIES: Dict[str, POICategory] = {
+    """
+    Defines the POI categories used for location intelligence scoring with their OSM tags, radii, thresholds, and weights.
+    """
 
     "education": POICategory(
         osm_key="amenity",

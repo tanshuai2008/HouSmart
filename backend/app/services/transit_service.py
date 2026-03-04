@@ -181,7 +181,7 @@ async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) 
 
 async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
     """
-    Task 1: Fetch stops from OSM and upsert into transit_stops table.
+    Fetch stops from OSM and upsert into transit_stops table.
     Handles duplicates via on_conflict="osm_id".
     """
     data = await fetch_transit_stops(lat, lng, radius_meters)
@@ -223,7 +223,7 @@ async def save_transit_stops_to_db(lat: float, lng: float, radius_meters: int = 
 
 async def save_transit_score_to_db(lat: float, lng: float, radius_meters: int = 800) -> dict:
     """
-    Task 3: Calculate transit score and upsert into transit_scores table.
+    Calculate transit score and upsert into transit_scores table.
     Handles duplicates via on_conflict="property_lat,property_lng".
     """
     data = await fetch_transit_stops(lat, lng, radius_meters)
@@ -263,7 +263,7 @@ async def save_transit_score_for_property(
     property_id: str, radius_meters: int = 800
 ) -> dict:
     """
-    Task 3 (main): Look up property coordinates from DB,
+    (main): Look up property coordinates from DB,
     calculate distance to nearest transit stop, save score.
     """
     response = (
@@ -292,3 +292,18 @@ async def save_transit_score_for_property(
         **score_data,
     }
 
+
+async def get_transit_score_by_address(address: str, radius_meters: int = 800) -> dict:
+    """
+    Address-based entry point (new — per tech lead feedback).
+    Geocodes the address using OSM Nominatim, then computes transit score.
+    """
+    from app.services.geocoding_service import geocode_address
+
+    lat, lng = await geocode_address(address)
+    score_data = await save_transit_score_to_db(lat, lng, radius_meters)
+
+    return {
+        "address": address,
+        **score_data,
+    }

@@ -23,6 +23,10 @@ class Settings(BaseSettings):
         "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
     )
 
+    # Geocoding (OSM Nominatim — free, no API key required)
+    NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"
+    NOMINATIM_HTTP_TIMEOUT_SECONDS: int = 10
+
     class Config:
         env_file = ".env"
         extra = "ignore"

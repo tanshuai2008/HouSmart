@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from typing import Optional
 
 
@@ -8,6 +8,17 @@ class TransitStopImportRequest(BaseModel):
     radius_meters: int = Field(
         default=800, ge=100, le=5000,
         description="Search radius in meters (100–5000). Default: 800m (walkable distance)"
+    )
+
+class AddressTransitRequest(BaseModel):
+    address: str = Field(
+        ...,
+        min_length=5,
+        description="Full street address e.g. '1000 Main St, Houston, TX 77002'"
+    )
+    radius_meters: int = Field(
+        default=800, ge=100, le=5000,
+        description="Search radius in meters (100–5000). Default: 800m"
     )
 
 

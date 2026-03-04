@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from app.api.schemas.transit import (
     TransitStopImportRequest,
+    AddressTransitRequest,
     TransitScoreResponse,
     PropertyTransitScoreResponse,
 )
@@ -8,19 +9,17 @@ from app.services.transit_service import (
     save_transit_stops_to_db,
     save_transit_score_to_db,
     save_transit_score_for_property,
+    get_transit_score_by_address,
 )
 
 router = APIRouter(prefix="/transit", tags=["Transit"])
 
 
-@router.post("/import-stops", summary="Task 1 — Import transit stop locations into DB")
+@router.post("/import-stops", summary="Import transit stop locations into DB")
 async def import_transit_stops(request: TransitStopImportRequest):
     """
     Fetches all transit stops from OSM Overpass within radius and saves
     to transit_stops table. Handles duplicates via upsert on osm_id.
-
-    - lat/lng: validated -90/90 and -180/180
-    - radius_meters: 100–5000m (default 800m)
     """
     try:
         result = await save_transit_stops_to_db(
@@ -33,7 +32,31 @@ async def import_transit_stops(request: TransitStopImportRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/score", summary="Task 3 — Calculate transit score by lat/lng")
+@router.post(
+    "/score/address",
+    summary="Calculate transit score by address (NEW)"
+)
+async def get_transit_score_by_address_endpoint(request: AddressTransitRequest):
+    """
+    Main entry point per tech lead feedback.
+    Accepts a street address, geocodes it via OSM Nominatim,
+    computes transit score and saves to transit_scores table.
+
+    Example: { "address": "1000 Main St, Houston, TX 77002" }
+    """
+    try:
+        result = await get_transit_score_by_address(
+            address=request.address,
+            radius_meters=request.radius_meters,
+        )
+        return {"status": "success", "data": result}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/score", summary="Calculate transit score by lat/lng")
 async def get_transit_score(
     lat: float = ...,
     lng: float = ...,
@@ -59,18 +82,13 @@ async def get_transit_score(
 
 @router.get(
     "/score/property/{property_id}",
-    summary="Task 3 — Calculate transit distance to nearest stop per property"
+    summary="Calculate transit score per property ID"
 )
 async def get_transit_score_for_property(
     property_id: str,
     radius_meters: int = 800,
 ):
-    """
-    Task 3 (main): Looks up property lat/lng from DB, calculates distance
-    to nearest transit stop, saves score to transit_scores table.
-
-    Returns 404 if property not found or has no coordinates.
-    """
+    """Looks up property lat/lng from DB, calculates transit score, saves result."""
     if not (100 <= radius_meters <= 5000):
         raise HTTPException(status_code=422, detail="radius_meters must be between 100 and 5000")
 

@@ -180,7 +180,7 @@ async def save_flood_zone_to_db(lat: float, lng: float) -> dict:
 
 async def check_flood_for_property(property_id: str) -> dict:
     """
-    Task 4: Look up property from DB, check its flood zone,
+    Look up property from DB, check its flood zone,
     return whether it intersects a flood zone.
     """
     response = (
@@ -221,7 +221,7 @@ async def check_flood_for_property(property_id: str) -> dict:
 
 async def check_all_properties_flood_intersect() -> dict:
     """
-    Task 4 (bulk): Check ALL properties in DB against FEMA flood zones.
+    Check ALL properties in DB against FEMA flood zones.
     Skips properties with missing coordinates gracefully.
     """
     response = (
@@ -292,4 +292,29 @@ async def check_all_properties_flood_intersect() -> dict:
         "minimal_risk_count": minimal_risk_count,
         "skipped_count": skipped_count,
         "results": results,
+    }
+
+
+async def get_flood_zone_by_address(address: str) -> dict:
+    """
+    Address-based entry point (new — per tech lead feedback).
+    Geocodes the address using OSM Nominatim, then checks FEMA flood zone.
+    """
+    from app.services.geocoding_service import geocode_address
+
+    lat, lng = await geocode_address(address)
+    flood_data = await save_flood_zone_to_db(lat, lng)
+    fld_zone = flood_data["fld_zone"]
+
+    return {
+        "address": address,
+        "property_lat": lat,
+        "property_lng": lng,
+        "fld_zone": fld_zone,
+        "risk_label": flood_data["risk_label"],
+        "flood_score": flood_data["flood_score"],
+        "in_flood_zone": fld_zone in HIGH_RISK_ZONES,
+        "in_moderate_zone": fld_zone in MODERATE_RISK_ZONES,
+        "flood_data_unknown": flood_data["flood_data_unknown"],
+        "source": flood_data["source"],
     }

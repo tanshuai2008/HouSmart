@@ -1,24 +1,49 @@
 from fastapi import APIRouter, HTTPException
-from app.api.schemas.flood import FloodCheckRequest, FloodZoneResponse, PropertyFloodResponse
+from app.api.schemas.flood import (
+    FloodCheckRequest,
+    AddressFloodRequest,
+    FloodZoneResponse,
+    PropertyFloodResponse,
+    AddressFloodResponse,
+)
 from app.services.flood_service import (
     get_flood_zone,
     save_flood_zone_to_db,
     check_flood_for_property,
     check_all_properties_flood_intersect,
+    get_flood_zone_by_address,
 )
 from app.core.config import settings
 
 router = APIRouter(prefix="/flood", tags=["Flood Risk"])
 
 
-@router.post("/import", summary="Task 2 — Import FEMA flood zone for a location into DB")
+@router.post(
+    "/check/address",
+    summary="Check flood zone by address (NEW)"
+)
+async def check_flood_by_address(request: AddressFloodRequest):
+    """
+    Main entry point per tech lead feedback.
+    Accepts a street address, geocodes it via OSM Nominatim,
+    checks FEMA flood zone, and saves result to flood_zones table.
+
+    Example: { "address": "1000 Main St, Houston, TX 77002" }
+    """
+    try:
+        result = await get_flood_zone_by_address(address=request.address)
+        return {"status": "success", "data": AddressFloodResponse(**result)}
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/import", summary="Import FEMA flood zone for a location into DB")
 async def import_flood_zone(request: FloodCheckRequest):
     """
     Queries FEMA NFHL for flood zone at lat/lng and saves to flood_zones table.
     Handles duplicates via upsert on (lat, lng).
-
-    - lat/lng: validated -90/90 and -180/180
-    - Falls back to geographic mock if FEMA unreachable (non-US IP)
     """
     try:
         result = await save_flood_zone_to_db(lat=request.lat, lng=request.lng)
@@ -27,7 +52,7 @@ async def import_flood_zone(request: FloodCheckRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/check", summary="Task 2 — Check flood zone by lat/lng (no DB write)")
+@router.get("/check", summary="Check flood zone by lat/lng (no DB write)")
 async def check_flood_zone(lat: float, lng: float):
     """
     Returns FEMA flood zone and risk score (0-100) for a lat/lng.
@@ -47,11 +72,11 @@ async def check_flood_zone(lat: float, lng: float):
 
 @router.get(
     "/check/property/{property_id}",
-    summary="Task 4 — Check if a property intersects a flood zone"
+    summary="Check if a property intersects a flood zone"
 )
 async def check_property_flood(property_id: str):
     """
-    Task 4: Looks up property coordinates from DB, checks FEMA flood zone,
+    Looks up property coordinates from DB, checks FEMA flood zone,
     returns whether property is in high-risk or moderate-risk flood zone.
 
     Returns 404 if property not found or has no coordinates.
@@ -67,11 +92,11 @@ async def check_property_flood(property_id: str):
 
 @router.get(
     "/check/all-properties",
-    summary="Task 4 — Check ALL properties for flood zone intersections"
+    summary="Check ALL properties for flood zone intersections"
 )
 async def check_all_properties_flood():
     """
-    Task 4 (bulk): Checks every property in DB against FEMA flood zones.
+    Checks every property in DB against FEMA flood zones.
     Returns summary counts + full result list.
     Properties with missing coordinates are skipped (reported in skipped_count).
     """

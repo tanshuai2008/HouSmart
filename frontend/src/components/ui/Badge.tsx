@@ -22,7 +22,7 @@ const variantStyles: Record<BadgeVariant, string> = {
     "match-high":
         "bg-[#ECFDF3] text-[#027A48] border border-[#6CE9A6] text-xs font-semibold px-2.5 py-1 rounded-md",
     "match-medium":
-        "bg-[#FFF8EB] text-[#B54708] border border-[#FEC84B] text-xs font-semibold px-2.5 py-1 rounded-md",
+        "bg-[#EFF8FF] text-[#1D4ED8] border border-[#93C5FD] text-xs font-semibold px-2.5 py-1 rounded-md",
     "match-low":
         "bg-[#F9FAFB] text-[#344054] border border-[#D0D5DD] text-xs font-semibold px-2.5 py-1 rounded-md",
     outline:

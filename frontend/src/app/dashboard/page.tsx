@@ -34,7 +34,7 @@ export default function DashboardPage() {
 
             <main className="px-5 py-5 max-w-[1340px] mx-auto">
                 {/* Two-column grid: left main content | right sidebar */}
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_306px] gap-4 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-4 items-start">
 
                     {/* ── LEFT COLUMN ── */}
                     <div className="flex flex-col gap-4 min-w-0">
@@ -42,8 +42,8 @@ export default function DashboardPage() {
                         {/* Property Verdict Card (with label inside) */}
                         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
                             {/* Section label */}
-                            <div className="px-5 pt-4 pb-0">
-                                <span className="text-[10px] font-semibold text-[#6B7280] tracking-[0.08em] uppercase">
+                            <div className="px-5 pt-4 pb-3 border-b border-[#F3F4F6]">
+                                <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase">
                                     Property Verdict
                                 </span>
                             </div>

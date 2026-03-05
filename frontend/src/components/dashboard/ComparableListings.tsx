@@ -15,8 +15,8 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
     return (
         <div className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[#F3F4F6]">
-                <span className="text-[10px] font-semibold text-[#6B7280] tracking-[0.08em] uppercase">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F3F4F6]">
+                <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase">
                     Comparable Listings
                 </span>
                 <span className="text-[10px] text-[#9CA3AF]">{radius}</span>
@@ -27,8 +27,10 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
                 <table className="w-full">
                     <thead>
                         <tr className="border-b border-[#F3F4F6]">
+                            <th className="text-left text-[10px] font-semibold text-[#9CA3AF] tracking-[0.06em] uppercase px-5 py-3 min-w-[150px]">
+                                Property<br />Address
+                            </th>
                             {[
-                                "Property Address",
                                 "Property Value",
                                 "Listed Rent",
                                 "Similarity",
@@ -37,7 +39,7 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
                             ].map((col) => (
                                 <th
                                     key={col}
-                                    className="text-left text-[10px] font-semibold text-[#9CA3AF] tracking-[0.06em] uppercase px-5 py-2.5 whitespace-nowrap bg-white"
+                                    className="text-left text-[10px] font-semibold text-[#9CA3AF] tracking-[0.06em] uppercase px-5 py-3 whitespace-nowrap"
                                 >
                                     {col}
                                 </th>
@@ -50,42 +52,42 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
                             return (
                                 <tr
                                     key={listing.id}
-                                    className="border-b border-[#F9FAFB] last:border-0 hover:bg-[#FAFAFA] transition"
+                                    className="border-b border-[#F3F4F6] last:border-0 hover:bg-[#FAFAFA] transition"
                                 >
                                     {/* Address */}
-                                    <td className="px-5 py-3 min-w-[140px]">
-                                        <p className="text-[12px] font-semibold text-[#101828]">{listing.address}</p>
-                                        <p className="text-[11px] text-[#9CA3AF] truncate max-w-[140px] mt-0.5">
+                                    <td className="px-5 py-4 min-w-[150px]">
+                                        <p className="text-[12px] font-bold text-[#101828]">{listing.address}</p>
+                                        <p className="text-[11px] text-[#9CA3AF] truncate max-w-[150px] mt-0.5">
                                             {listing.neighborhood}
                                         </p>
                                     </td>
 
                                     {/* Property Value */}
-                                    <td className="px-5 py-3 whitespace-nowrap">
-                                        <p className="text-[12px] font-semibold text-[#101828]">{listing.propertyValue}</p>
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <p className="text-[12px] font-bold text-[#101828]">{listing.propertyValue}</p>
                                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">Est. Payment {listing.estPayment}</p>
                                     </td>
 
                                     {/* Listed Rent */}
-                                    <td className="px-5 py-3 whitespace-nowrap">
-                                        <p className="text-[12px] font-semibold text-[#101828]">{listing.listedRent}</p>
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <p className="text-[12px] font-bold text-[#101828]">{listing.listedRent}</p>
                                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">{listing.rentPerSqft}</p>
                                     </td>
 
                                     {/* Similarity */}
-                                    <td className="px-5 py-3">
+                                    <td className="px-5 py-4">
                                         <Badge variant={matchVariant}>{listing.matchPercent}% Match</Badge>
                                     </td>
 
                                     {/* Details */}
-                                    <td className="px-5 py-3 whitespace-nowrap">
-                                        <p className="text-[12px] text-[#101828]">{listing.specs}</p>
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <p className="text-[12px] font-semibold text-[#101828]">{listing.specs}</p>
                                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">{listing.sqft}</p>
                                     </td>
 
                                     {/* Listed Date */}
-                                    <td className="px-5 py-3 whitespace-nowrap">
-                                        <p className="text-[12px] text-[#101828]">{listing.listedDate}</p>
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <p className="text-[12px] font-bold text-[#101828]">{listing.listedDate}</p>
                                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">{listing.daysAgo} days ago</p>
                                     </td>
                                 </tr>

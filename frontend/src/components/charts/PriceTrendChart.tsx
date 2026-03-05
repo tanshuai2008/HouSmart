@@ -44,12 +44,11 @@ const CustomTooltip = ({
 
 export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
     return (
-        <ResponsiveContainer width="100%" height={180}>
+        <ResponsiveContainer width="100%" height={200}>
             <BarChart
                 data={data}
                 margin={{ top: 10, right: 0, left: -20, bottom: 0 }}
-                barCategoryGap="20%"
-                barGap={2}
+                barCategoryGap="35%"
             >
                 <CartesianGrid
                     vertical={false}
@@ -77,15 +76,6 @@ export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
                         <Cell
                             key={`cell-${index}`}
                             fill={entry.property < 0 ? "#12B76A" : "#3B82F6"}
-                        />
-                    ))}
-                </Bar>
-                <Bar dataKey="market" name="Market" radius={[3, 3, 0, 0]}>
-                    {data.map((entry, index) => (
-                        <Cell
-                            key={`cell-m-${index}`}
-                            fill={entry.market < 0 ? "#12B76A" : "#12B76A"}
-                            opacity={0.7}
                         />
                     ))}
                 </Bar>

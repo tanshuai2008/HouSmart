@@ -9,28 +9,6 @@ interface LocationIntelligenceProps {
     radius?: string;
 }
 
-const POI_LEGEND = [
-    { label: "Target Property", color: "#101828" },
-    { label: "Food/Drink", color: "#B45309" },
-    { label: "Education", color: "#1D4ED8" },
-    { label: "Commercial", color: "#374151" },
-    { label: "Park/Leisure", color: "#15803D" },
-    { label: "Grocery", color: "#7E22CE" },
-    { label: "Health", color: "#B42318" },
-];
-
-const POI_PINS = [
-    { top: "25%", left: "55%", color: "#B45309" },
-    { top: "60%", left: "70%", color: "#15803D" },
-    { top: "30%", left: "22%", color: "#1D4ED8" },
-    { top: "72%", left: "28%", color: "#7E22CE" },
-    { top: "18%", left: "72%", color: "#B42318" },
-    { top: "52%", left: "18%", color: "#B45309" },
-    { top: "78%", left: "62%", color: "#1D4ED8" },
-    { top: "38%", left: "80%", color: "#15803D" },
-    { top: "65%", left: "48%", color: "#374151" },
-];
-
 export const LocationIntelligence: React.FC<LocationIntelligenceProps> = ({
     scores,
     radius = "0.5 mi radius",
@@ -38,45 +16,49 @@ export const LocationIntelligence: React.FC<LocationIntelligenceProps> = ({
     return (
         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3">
-                <span className="text-[10px] font-semibold text-[#6B7280] tracking-[0.08em] uppercase">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#F3F4F6]">
+                <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase">
                     Location Intelligence
                 </span>
                 <span className="text-[10px] text-[#9CA3AF]">{radius}</span>
             </div>
 
-            {/* Map */}
-            <div className="relative mx-3 mb-3 rounded-lg overflow-hidden h-[210px]">
-                {/* Base map (satellite-style grid) */}
+            {/* Map placeholder */}
+            <div className="relative mx-3 mt-3 mb-3 rounded-xl overflow-hidden h-[200px]">
+                {/* Base: street-map-style background */}
                 <div
                     className="w-full h-full"
                     style={{
+                        backgroundColor: "#e8e0d8",
                         backgroundImage: `
-              radial-gradient(circle at 30% 50%, rgba(255,200,100,0.25) 0%, transparent 60%),
-              radial-gradient(circle at 70% 30%, rgba(100,180,255,0.2) 0%, transparent 60%),
-              linear-gradient(rgba(160,180,165,0.35) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(160,180,165,0.35) 1px, transparent 1px)
-            `,
-                        backgroundSize: "100% 100%, 100% 100%, 22px 22px, 22px 22px",
-                        backgroundColor: "#8B9E8A",
+                            linear-gradient(rgba(200,194,186,0.8) 1px, transparent 1px),
+                            linear-gradient(90deg, rgba(200,194,186,0.8) 1px, transparent 1px),
+                            linear-gradient(rgba(200,194,186,0.4) 0.5px, transparent 0.5px),
+                            linear-gradient(90deg, rgba(200,194,186,0.4) 0.5px, transparent 0.5px)
+                        `,
+                        backgroundSize: "60px 60px, 60px 60px, 20px 20px, 20px 20px",
                     }}
                 />
 
-                {/* Road overlays */}
+                {/* Streets */}
                 <div className="absolute inset-0 pointer-events-none">
-                    {/* Horizontal yellow road */}
-                    <div className="absolute w-full" style={{ top: "46%", height: "5px", backgroundColor: "#F5C842", opacity: 0.85 }} />
-                    {/* Vertical yellow road */}
-                    <div className="absolute h-full" style={{ left: "38%", width: "5px", backgroundColor: "#F5C842", opacity: 0.85 }} />
+                    {/* Major horizontal road */}
+                    <div className="absolute w-full" style={{ top: "42%", height: "8px", backgroundColor: "#fff", opacity: 0.95 }} />
+                    {/* Major vertical road */}
+                    <div className="absolute h-full" style={{ left: "40%", width: "8px", backgroundColor: "#fff", opacity: 0.95 }} />
                     {/* Secondary roads */}
-                    <div className="absolute w-full" style={{ top: "62%", height: "2px", backgroundColor: "#E0CC8A", opacity: 0.7 }} />
-                    <div className="absolute h-full" style={{ left: "63%", width: "2px", backgroundColor: "#E0CC8A", opacity: 0.7 }} />
-                    <div className="absolute w-full" style={{ top: "28%", height: "2px", backgroundColor: "#C8BA6A", opacity: 0.5 }} />
-                    <div className="absolute h-full" style={{ left: "80%", width: "2px", backgroundColor: "#C8BA6A", opacity: 0.5 }} />
+                    <div className="absolute w-full" style={{ top: "65%", height: "4px", backgroundColor: "#f5f0ea", opacity: 0.9 }} />
+                    <div className="absolute h-full" style={{ left: "65%", width: "4px", backgroundColor: "#f5f0ea", opacity: 0.9 }} />
+                    <div className="absolute w-full" style={{ top: "22%", height: "3px", backgroundColor: "#f5f0ea", opacity: 0.7 }} />
+                    <div className="absolute h-full" style={{ left: "20%", width: "3px", backgroundColor: "#f5f0ea", opacity: 0.7 }} />
+                    {/* Block fills */}
+                    <div className="absolute" style={{ top: "0%", left: "0%", width: "38%", height: "40%", backgroundColor: "#ddd9d2", opacity: 0.5 }} />
+                    <div className="absolute" style={{ top: "44%", left: "42%", width: "21%", height: "19%", backgroundColor: "#d4edd8", opacity: 0.6 }} />
+                    <div className="absolute" style={{ top: "0%", left: "42%", width: "20%", height: "40%", backgroundColor: "#ddd9d2", opacity: 0.4 }} />
                 </div>
 
                 {/* Satellite view button */}
-                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-[#E5E7EB]">
+                <div className="absolute top-2 right-2 z-10 flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-md px-2 py-1 shadow-sm border border-[#E5E7EB]/80">
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#374151" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="3" /><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83" />
                     </svg>
@@ -84,36 +66,32 @@ export const LocationIntelligence: React.FC<LocationIntelligenceProps> = ({
                 </div>
 
                 {/* Zoom controls */}
-                <div className="absolute top-2 left-2 z-10 flex flex-col bg-white rounded-md shadow overflow-hidden border border-[#E5E7EB]">
+                <div className="absolute top-2 left-2 z-10 flex flex-col bg-white rounded-md shadow-sm overflow-hidden border border-[#E5E7EB]">
                     <button className="w-6 h-6 flex items-center justify-center text-sm text-[#374151] hover:bg-[#F3F4F6] border-b border-[#E5E7EB] font-bold leading-none transition">+</button>
                     <button className="w-6 h-6 flex items-center justify-center text-sm text-[#374151] hover:bg-[#F3F4F6] font-bold leading-none transition">−</button>
                 </div>
 
-                {/* POI dots */}
-                {POI_PINS.map((pin, i) => (
-                    <span
-                        key={i}
-                        className="absolute w-3 h-3 rounded-full border-2 border-white shadow-md"
-                        style={{
-                            top: pin.top,
-                            left: pin.left,
-                            backgroundColor: pin.color,
-                            transform: "translate(-50%, -50%)",
-                            zIndex: 5,
-                        }}
-                    />
-                ))}
-
                 {/* Subject property label */}
                 <div
-                    className="absolute z-10 flex items-center gap-1 bg-white/95 text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-md text-[#101828] border border-[#E5E7EB] whitespace-nowrap"
-                    style={{ top: "44%", left: "12%" }}
+                    className="absolute z-10 flex items-center gap-1.5 bg-white text-[10px] font-semibold px-2 py-1 rounded-md shadow-md text-[#101828] border border-[#E5E7EB] whitespace-nowrap"
+                    style={{ top: "40%", left: "12%" }}
                 >
                     <span className="w-2 h-2 rounded-full bg-[#101828] shrink-0" />
                     1248 Highland Avenue
                 </div>
 
-                {/* AI Chat bubble button – fixed within map context */}
+                {/* Red location pin (target property) */}
+                <div
+                    className="absolute z-10"
+                    style={{ top: "52%", left: "36%", transform: "translate(-50%, -100%)" }}
+                >
+                    <svg width="20" height="28" viewBox="0 0 20 28" fill="none">
+                        <path d="M10 0C4.48 0 0 4.48 0 10c0 7.5 10 18 10 18S20 17.5 20 10C20 4.48 15.52 0 10 0z" fill="#EF4444" />
+                        <circle cx="10" cy="10" r="4" fill="white" />
+                    </svg>
+                </div>
+
+                {/* AI Chat bubble */}
                 <div className="absolute bottom-2 right-2 z-10">
                     <div className="w-8 h-8 rounded-full bg-[#101828] flex items-center justify-center shadow-lg cursor-pointer hover:bg-[#1D2939] transition">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -123,31 +101,20 @@ export const LocationIntelligence: React.FC<LocationIntelligenceProps> = ({
                 </div>
             </div>
 
-            {/* POI Legend */}
-            <div className="px-4 pb-2 grid grid-cols-3 gap-x-2 gap-y-1.5">
-                {POI_LEGEND.map((cat) => (
-                    <div key={cat.label} className="flex items-center gap-1.5">
-                        <span
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ backgroundColor: cat.color }}
-                        />
-                        <span className="text-[10px] text-[#6B7280] truncate">{cat.label}</span>
-                    </div>
-                ))}
-            </div>
-
-            {/* Divider */}
-            <div className="h-px bg-[#F3F4F6] mx-4 my-2" />
-
-            {/* Score bars */}
-            <div className="px-4 pb-4 flex flex-col gap-2.5">
-                {scores.map((score) => (
-                    <div key={score.label} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Image src={score.icon} alt={score.label} width={12} height={12} className="shrink-0" />
-                            <span className="text-[11px] text-[#344054]">{score.label}</span>
+            {/* Score rows — with dividers between each */}
+            <div className="px-4 pb-3">
+                {scores.map((score, idx) => (
+                    <div key={score.label}>
+                        <div className="flex items-center justify-between py-3">
+                            <div className="flex items-center gap-2.5">
+                                <Image src={score.icon} alt={score.label} width={14} height={14} className="shrink-0 opacity-70" />
+                                <span className="text-[12px] font-medium text-[#374151]">{score.label}</span>
+                            </div>
+                            <ScoreBar score={score.score} />
                         </div>
-                        <ScoreBar score={score.score} />
+                        {idx < scores.length - 1 && (
+                            <div className="h-px bg-[#F3F4F6]" />
+                        )}
                     </div>
                 ))}
             </div>

@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import Image from "next/image";
-import { ExternalLink, Share2, FileText, TrendingUp, AlertTriangle } from "lucide-react";
+import { ArrowRight, Upload, Download, TrendingUp, AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { PropertyInsight } from "@/lib/mockData";
 
@@ -27,15 +27,15 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                     </span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-[11px] font-semibold px-3 py-1.5 rounded-lg hover:bg-[#1D2939] transition">
+                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-xs font-semibold px-3.5 py-2 rounded-lg hover:bg-[#1D2939] transition">
                         View Listing
-                        <ExternalLink size={10} />
+                        <ArrowRight size={11} />
                     </button>
-                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:bg-[#F9FAFB] transition">
-                        <Share2 size={10} /> Share
+                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#F9FAFB] transition">
+                        <Upload size={11} /> Share
                     </button>
-                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-[11px] font-medium px-2.5 py-1.5 rounded-lg hover:bg-[#F9FAFB] transition">
-                        <FileText size={10} /> Report
+                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#F9FAFB] transition">
+                        <Download size={11} /> Report
                     </button>
                 </div>
             </div>
@@ -47,7 +47,7 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                 </h2>
                 <p className="text-xs text-[#6B7280] mt-1.5 leading-relaxed max-w-[580px]">
                     Our model identifies this property as{" "}
-                    <span className="text-[#B54708] font-semibold underline">
+                    <span className="text-[#027A48] font-semibold underline">
                         undervalued by {insight.undervaluedBy ?? "4.2"}%
                     </span>{" "}
                     relative to the neighborhood average. Key value drivers include the
@@ -68,8 +68,8 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                     <div className="flex flex-col gap-3">
                         {insight.upsideDrivers.map((item) => (
                             <div key={item.id} className="flex gap-2.5 items-start">
-                                <div className="mt-0.5 w-[22px] h-[22px] flex items-center justify-center rounded-md bg-[#F0FDF4] shrink-0">
-                                    <Image src={item.icon} alt={item.title} width={12} height={12} />
+                                <div className="mt-0.5 w-[26px] h-[26px] flex items-center justify-center rounded-full bg-[#ECFDF3] shrink-0">
+                                    <Image src={item.icon} alt={item.title} width={13} height={13} />
                                 </div>
                                 <div>
                                     <p className="text-[11px] font-semibold text-[#101828] leading-tight">{item.title}</p>
@@ -91,10 +91,10 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                         </span>
                     </div>
                     <div className="flex flex-col gap-3">
-                        {insight.riskFactors.map((item) => (
+                        {insight.riskFactors.map((item, idx) => (
                             <div key={item.id} className="flex gap-2.5 items-start">
-                                <div className="mt-0.5 w-[22px] h-[22px] flex items-center justify-center rounded-md bg-[#FFF1F0] shrink-0">
-                                    <Image src={item.icon} alt={item.title} width={12} height={12} />
+                                <div className="mt-0.5 w-[26px] h-[26px] flex items-center justify-center rounded-full bg-[#FFF1F0] shrink-0">
+                                    <Image src={item.icon} alt={item.title} width={13} height={13} />
                                 </div>
                                 <div>
                                     <p className="text-[11px] font-semibold text-[#101828] leading-tight">{item.title}</p>

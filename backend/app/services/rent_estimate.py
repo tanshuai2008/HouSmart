@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING, Any, TypedDict
+from typing import Optional, Any, TypedDict
 import os
 import requests
 from dotenv import load_dotenv
@@ -16,8 +16,44 @@ from app.utils.logging import get_logger
 from supabase import Client
 
 load_dotenv()
-api_key = os.getenv("RENT_ESTIMATE_API_KEY")
-ZYLA_ENDPOINT = "https://zylalabs.com/api/2827/us+rental+estimation+api/2939/get+estimation"
+api_key = os.getenv("RENT_ESTIMATE_API_KEY_RentCast") or os.getenv("RENT_ESTIMATE_API_KEY")
+RENTCAST_ENDPOINT = "https://api.rentcast.io/v1/avm/rent/long-term"
+
+PROPERTY_TYPE_CANONICAL = {
+    "house": "House",
+    "singlefamily": "House",
+    "singlefamilyhome": "House",
+    "detached": "House",
+    "condo": "Condo",
+    "condominium": "Condo",
+    "condominiums": "Condo",
+    "apartment": "Apartment",
+    "apt": "Apartment",
+    "apartments": "Apartment",
+    "townhouse": "Townhouse",
+    "townhome": "Townhouse",
+    "rowhouse": "Townhouse",
+    "rowhome": "Townhouse",
+    "manufactured": "Manufactured",
+    "mobilehome": "Manufactured",
+    "mobile": "Manufactured",
+    "factorybuilt": "Manufactured",
+    "prefab": "Manufactured",
+    "multifamily": "Multi-Family",
+    "multiunit": "Multi-Family",
+    "duplex": "Multi-Family",
+    "triplex": "Multi-Family",
+    "fourplex": "Multi-Family",
+    "quadplex": "Multi-Family",
+    "land": "Land",
+    "lot": "Land",
+    "vacantland": "Land",
+    "parcel": "Land",
+}
+PROPERTY_TYPE_LIST = ", ".join(
+    ["House", "Apartment", "Condo", "Townhouse", "Manufactured", "Multi-Family", "Land"]
+)
+
 logger = get_logger(__name__)
 
 
@@ -27,96 +63,27 @@ class RentEstimateResult(TypedDict):
     rent_range_high: Optional[float]
     currency: str
     address: str
+    subject_property: dict[str, Any]
+    comparables: list[dict[str, Any]]
 
 
 class RentEstimateServiceError(Exception):
-    """Raised when the Zyla request fails or returns invalid data."""
+    """Raised when the rentcast request fails or returns invalid data."""
 
 
-def _build_result(address: str, payload: dict[str, Any]) -> RentEstimateResult:
-    rent_value = payload.get("rent")
-    if rent_value is None:
-        raise RentEstimateServiceError("Zyla response does not include rent")
-    try:
-        rent = float(rent_value)
-    except (TypeError, ValueError) as exc:
-        raise RentEstimateServiceError("Zyla response contained a non-numeric rent value") from exc
-
-    rent_range_low = payload.get("rentRangeLow")
-    if rent_range_low is not None:
-        try:
-            rent_range_low = float(rent_range_low)
-        except (TypeError, ValueError) as exc:
-            raise RentEstimateServiceError("Zyla response contained a non-numeric range value") from exc
-
-    rent_range_high = payload.get("rentRangeHigh")
-    if rent_range_high is not None:
-        try:
-            rent_range_high = float(rent_range_high)
-        except (TypeError, ValueError) as exc:
-            raise RentEstimateServiceError("Zyla response contained a non-numeric range value") from exc
-
-    return {
-        "rent": rent,
-        "rent_range_low": rent_range_low,
-        "rent_range_high": rent_range_high,
-        "currency": str(payload.get("currency", "USD")),
-        "address": address,
-    }
-
-
-def _validate_request_inputs(
-    *,
-    address: str,
-    property_type: str,
-    bedrooms: int,
-    bathrooms: int,
-    square_footage: int,
-) -> dict[str, Any]:
-    missing_fields: list[str] = []
-    normalized_address = (address or "").strip()
-    if not normalized_address:
-        missing_fields.append("address")
-
-    normalized_property_type = (property_type or "").strip()
-    if not normalized_property_type:
-        missing_fields.append("property_type")
-
-    if bedrooms is None:
-        missing_fields.append("bedrooms")
-
-    if bathrooms is None:
-        missing_fields.append("bathrooms")
-
-    if square_footage is None:
-        missing_fields.append("square_footage")
-
-    if missing_fields:
-        missing = ", ".join(missing_fields)
-        raise ValueError(f"Missing required rent estimate parameters: {missing}")
-
-    try:
-        bedrooms_value = int(bedrooms)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("bedrooms must be an integer") from exc
-
-    try:
-        bathrooms_value = float(bathrooms)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("bathrooms must be numeric") from exc
-
-    try:
-        square_footage_value = int(square_footage)
-    except (TypeError, ValueError) as exc:
-        raise ValueError("square_footage must be an integer") from exc
-
-    return {
-        "address": normalized_address,
-        "property_type": normalized_property_type,
-        "bedrooms": bedrooms_value,
-        "bathrooms": bathrooms_value,
-        "square_footage": square_footage_value,
-    }
+def _normalize_property_type(propertyType: Optional[str]) -> Optional[str]:
+    if propertyType is None:
+        return None
+    normalized = propertyType.strip()
+    if not normalized:
+        return None
+    key = "".join(ch for ch in normalized.lower() if ch.isalnum())
+    if not key:
+        return None
+    canonical = PROPERTY_TYPE_CANONICAL.get(key)
+    if not canonical:
+        raise ValueError(f"propertyType must be one of: {PROPERTY_TYPE_LIST}")
+    return canonical
 
 
 def _try_get_cached_result(
@@ -141,8 +108,29 @@ def _try_get_cached_result(
         return None
 
     try:
-        cached_result = _build_result(address, cached_payload)
+        rent_value = cached_payload.get("rent")
+        if rent_value is None:
+            raise RentEstimateServiceError("RentCast response does not include rent")
+        rent = float(rent_value)
+
+        rent_range_low_value = cached_payload.get("rentRangeLow")
+        rent_range_low = float(rent_range_low_value) if rent_range_low_value is not None else None
+        rent_range_high_value = cached_payload.get("rentRangeHigh")
+        rent_range_high = float(rent_range_high_value) if rent_range_high_value is not None else None
+
+        cached_result: RentEstimateResult = {
+            "rent": rent,
+            "rent_range_low": rent_range_low,
+            "rent_range_high": rent_range_high,
+            "currency": str(cached_payload.get("currency", "USD")),
+            "address": address,
+            "subject_property": cached_payload.get("subjectProperty", {}) or {},
+            "comparables": cached_payload.get("comparables", []) or [],
+        }
     except RentEstimateServiceError as exc:
+        logger.warning("Invalid cached rent payload for hash %s: %s", cache_key, exc)
+        return None
+    except (TypeError, ValueError) as exc:
         logger.warning("Invalid cached rent payload for hash %s: %s", cache_key, exc)
         return None
 
@@ -150,7 +138,7 @@ def _try_get_cached_result(
     return cached_result
 
 
-def _call_zyla_api(
+def _call_rentcast_api(
     *,
     http: requests.Session,
     request_payload: dict[str, Any],
@@ -160,33 +148,40 @@ def _call_zyla_api(
         raise ValueError("api_key is required")
 
     headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json",
+        "X-Api-Key": api_key,
     }
 
     query: dict[str, object] = {
         "address": request_payload["address"],
-        "propertyType": request_payload["property_type"],
-        "bedrooms": request_payload["bedrooms"],
-        "bathrroms": request_payload["bathrooms"],
-        "squareFootage": request_payload["square_footage"],
     }
+    if "city" in request_payload:
+        query["city"] = request_payload["city"]
+    if "state" in request_payload:
+        query["state"] = request_payload["state"]
+    if "propertyType" in request_payload:
+        query["propertyType"] = request_payload["propertyType"]
+    if "bedrooms" in request_payload:
+        query["bedrooms"] = request_payload["bedrooms"]
+    if "bathrooms" in request_payload:
+        query["bathrooms"] = request_payload["bathrooms"]
+    if "compCount" in request_payload:
+        query["compCount"] = request_payload["compCount"]
 
     try:
         response = http.get(
-            ZYLA_ENDPOINT,
+            RENTCAST_ENDPOINT,
             headers=headers,
             params=query,
             timeout=timeout,
         )
         response.raise_for_status()
     except requests.RequestException as exc:
-        raise RentEstimateServiceError(f"Request to Zyla failed: {exc}") from exc
+        raise RentEstimateServiceError(f"Request to RentCast failed: {exc}") from exc
 
     try:
         return response.json()
     except ValueError as exc:
-        raise RentEstimateServiceError("Zyla returned a non-JSON response") from exc
+        raise RentEstimateServiceError("RentCast returned a non-JSON response") from exc
 
 
 def _persist_cache_entry(
@@ -210,10 +205,12 @@ def _persist_cache_entry(
 def fetch_rent_estimate(
     *,
     address: str,
-    property_type: str,
-    bedrooms: int,
-    bathrooms: int,
-    square_footage: int,
+    city: Optional[str] = None,
+    state: Optional[str] = None,
+    propertyType: Optional[str] = None,
+    bedrooms: Optional[int] = None,
+    bathrooms: Optional[float] = None,
+    compCount: Optional[int] = None,
     session: Optional[requests.Session] = None,
     timeout: float = 15.0,
     supabase_client: Optional[Client] = None,
@@ -221,13 +218,52 @@ def fetch_rent_estimate(
     if not api_key:
         raise ValueError("api_key is required")
 
-    cache_request_payload = _validate_request_inputs(
-        address=address,
-        property_type=property_type,
-        bedrooms=bedrooms,
-        bathrooms=bathrooms,
-        square_footage=square_footage,
-    )
+    normalized_address = (address or "").strip()
+    if not normalized_address:
+        raise ValueError("address is required")
+
+    cache_request_payload: dict[str, Any] = {"address": normalized_address}
+
+    normalized_city = (city or "").strip()
+    if normalized_city:
+        cache_request_payload["city"] = normalized_city
+
+    normalized_state = (state or "").strip().upper()
+    if normalized_state:
+        if len(normalized_state) != 2:
+            raise ValueError("state must be a 2-letter code")
+        cache_request_payload["state"] = normalized_state
+
+    normalized_property_type = _normalize_property_type(propertyType)
+    if normalized_property_type:
+        cache_request_payload["propertyType"] = normalized_property_type
+
+    if bedrooms is not None:
+        try:
+            bedrooms_value = int(bedrooms)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("bedrooms must be an integer") from exc
+        if bedrooms_value < 0:
+            raise ValueError("bedrooms must be greater than or equal to 0")
+        cache_request_payload["bedrooms"] = bedrooms_value
+
+    if bathrooms is not None:
+        try:
+            bathrooms_value = float(bathrooms)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("bathrooms must be numeric") from exc
+        if bathrooms_value < 0:
+            raise ValueError("bathrooms must be greater than or equal to 0")
+        cache_request_payload["bathrooms"] = bathrooms_value
+
+    if compCount is not None:
+        try:
+            comp_count_value = int(compCount)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("compCount must be an integer") from exc
+        if comp_count_value <= 0:
+            raise ValueError("compCount must be greater than 0")
+        cache_request_payload["compCount"] = comp_count_value
 
     http = session or requests.Session()
     cache_key = build_request_hash(cache_request_payload)
@@ -242,12 +278,34 @@ def fetch_rent_estimate(
     if cached_result:
         return cached_result
 
-    payload = _call_zyla_api(
+    payload = _call_rentcast_api(
         http=http,
         request_payload=cache_request_payload,
         timeout=timeout,
     )
-    result = _build_result(cache_request_payload["address"], payload)
+    try:
+        rent_value = payload.get("rent")
+        if rent_value is None:
+            raise RentEstimateServiceError("RentCast response does not include rent")
+        rent = float(rent_value)
+
+        rent_range_low_value = payload.get("rentRangeLow")
+        rent_range_low = float(rent_range_low_value) if rent_range_low_value is not None else None
+
+        rent_range_high_value = payload.get("rentRangeHigh")
+        rent_range_high = float(rent_range_high_value) if rent_range_high_value is not None else None
+    except (TypeError, ValueError) as exc:
+        raise RentEstimateServiceError("RentCast response contained a non-numeric value") from exc
+
+    result: RentEstimateResult = {
+        "rent": rent,
+        "rent_range_low": rent_range_low,
+        "rent_range_high": rent_range_high,
+        "currency": str(payload.get("currency", "USD")),
+        "address": cache_request_payload["address"],
+        "subject_property": payload.get("subjectProperty", {}) or {},
+        "comparables": payload.get("comparables", []) or [],
+    }
     _persist_cache_entry(
         cache_key=cache_key,
         cache_request_payload=cache_request_payload,
@@ -268,10 +326,12 @@ def main() -> None:
     try:
         result = fetch_rent_estimate(
             address="1300 N St Nw, Washington, DC 20005",
-            property_type="single family",
+            city="Washington",
+            state="DC",
+            propertyType="single family",
             bedrooms=0,
             bathrooms=1,
-            square_footage=655,
+            compCount=5,
             supabase_client=supabase_client,
         )
     except RentEstimateServiceError as exc:

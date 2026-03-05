@@ -13,10 +13,12 @@ def get_rent_estimate(payload: RentEstimateRequest) -> RentEstimateResponse:
         supabase_client = get_supabase()
         result = fetch_rent_estimate(
             address=payload.address,
-            property_type=payload.property_type,
+            city=payload.city,
+            state=payload.state,
+            propertyType=payload.propertyType,
             bedrooms=payload.bedrooms,
             bathrooms=payload.bathrooms,
-            square_footage=payload.square_footage,
+            compCount=payload.compCount,
             supabase_client=supabase_client,
         )
         return RentEstimateResponse(**result)

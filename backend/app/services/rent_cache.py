@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from app.services.supabase_client import SupabaseConfigError, get_supabase
 from app.utils.logging import get_logger
 
-if TYPE_CHECKING:
-    from supabase import Client
-
 logger = get_logger(__name__)
 
 CACHE_TABLE_NAME = os.getenv("RENT_CACHE_TABLE", "rent_estimate_cache")
@@ -42,18 +39,14 @@ def build_request_hash(payload: Dict[str, Any]) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
-def _resolve_client(supabase_client: Optional["Client"]) -> "Client":
-    return supabase_client or get_supabase()
-
-
 def get_cached_estimate(
     request_hash: str,
     ttl_seconds: Optional[int] = None,
     *,
-    supabase_client: Optional["Client"] = None,
+    supabase_client,
 ) -> Optional[Dict[str, Any]]:
     ttl = DEFAULT_TTL_SECONDS if ttl_seconds is None else ttl_seconds
-    client = _resolve_client(supabase_client)
+    client = supabase_client
     try:
         response = (
             client
@@ -90,9 +83,9 @@ def upsert_cached_estimate(
     request_payload: Dict[str, Any],
     response_payload: Dict[str, Any],
     *,
-    supabase_client: Optional["Client"] = None,
+    supabase_client,
 ) -> None:
-    client = _resolve_client(supabase_client)
+    client = supabase_client
     row = {
         "request_hash": request_hash,
         "address": request_payload.get("address"),

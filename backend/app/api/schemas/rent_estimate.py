@@ -1,7 +1,5 @@
 from typing import Any
-
 from pydantic import BaseModel, Field
-
 
 class RentEstimateRequest(BaseModel):
     address: str = Field(..., min_length=1, description="Full property address")

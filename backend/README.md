@@ -2,21 +2,11 @@
 
 **Branch:** `Imene_AIRecommendation`  
 **Status:** ✅ Complete  
-**Endpoint tested:** `POST /dev/test-mock` → 200 OK via Swagger
-
----
 
 ## What This Does
 
-Implements the **core LLM intelligence pipeline** for HouSmart property evaluations, as specified in the AI Pipeline doc.
-
-When all property variables are settled (status = `ready` or `failed`), this module:
-1. Builds a deterministic JSON payload from the DB snapshot
-2. Optionally runs a policy RAG analysis (TX / WA / NC only)
-3. Calls Gemini to generate a structured investment recommendation
-4. Validates the output deterministically (no LLM 3 for MVP)
-5. Logs token usage and cost
-6. Returns structured JSON to the dashboard
+Implements the core LLM intelligence pipeline for HouSmart property evaluations.  
+When all property variables are settled (`ready` or `failed`), this module builds a deterministic JSON payload, optionally runs policy RAG analysis (TX/WA/NC), calls Gemini for a structured investment recommendation, validates the output, logs usage, and returns structured JSON to the dashboard.
 
 ---
 
@@ -24,17 +14,16 @@ When all property variables are settled (status = `ready` or `failed`), this mod
 
 | Requirement | File | Status |
 |---|---|---|
-| `recommendation.py` → receives deterministic JSON + optional policy | `intelligence/recommendation.py` | ✅ |
+| `recommendation.py` → deterministic JSON + optional policy | `intelligence/recommendation.py` | ✅ |
 | `inject_policy()` helper | `intelligence/recommendation.py` | ✅ |
-| `engine.py` → conditional policy + mandatory recommendation + logging | `intelligence/engine.py` | ✅ |
+| `engine.py` → conditional policy + recommendation + logging | `intelligence/engine.py` | ✅ |
 | Valid structured JSON output enforced | `recommendation.py` + `validator.py` | ✅ |
 | Failed variable flags passed to AI | `intelligence/builder.py` | ✅ |
-| Post-AI deterministic validation | `intelligence/validator.py` | ✅ |
+| Post-AI deterministic validation (4 rulesets) | `intelligence/validator.py` | ✅ |
 | Token + cost audit logging | `intelligence/logger.py` | ✅ |
 | Versioned prompt files | `intelligence/prompts/` | ✅ |
 | API endpoint + Pydantic schemas | `api/evaluation.py` + `models/evaluation_models.py` | ✅ |
-
-> `services/evaluation_orchestrator.py` (DB polling / variable timing) is out of scope for this task — belongs to the variable pipeline integration phase.
+| DB write to `property_ai_summary` | `api/evaluation.py` | ✅ tested |
 
 ---
 
@@ -49,20 +38,12 @@ POST /evaluate-property/{evaluation_id}
         ▼
    engine.py              ← main AI orchestrator
    │
-   ├── builder.py         ← builds deterministic JSON (ready + failed vars + priorities)
+   ├── builder.py         ← deterministic JSON (ready + failed vars + priorities)
    ├── policy.py          ← LLM 2: RAG policy analysis (TX/WA/NC only)
    ├── recommendation.py  ← LLM 1: tactical data analyst + inject_policy()
-   ├── validator.py       ← Python deterministic validation (4 rulesets)
-   └── logger.py          ← token + USD cost logging to ai_usage_log table
+   ├── validator.py       ← 4-ruleset deterministic validator
+   └── logger.py          ← token + USD cost logging
 ```
-
-### Two-Model Strategy
-
-| Model | Role | Runs |
-|---|---|---|
-| `gemini-2.0-flash` | LLM 1 — Tactical Data Analyst | Always |
-| `gemini-2.0-flash` | LLM 2 — Strategic Policy Expert | TX / WA / NC only |
-| Python script | Deterministic Validator | Always (post-AI) |
 
 ---
 
@@ -71,9 +52,9 @@ POST /evaluate-property/{evaluation_id}
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/evaluate-property/{evaluation_id}` | Production — requires DB + real evaluation ID |
-| `POST` | `/dev/test-mock` | Dev-only — full pipeline with mocked LLM, no DB or API key needed |
+| `POST` | `/dev/test-mock` | Dev-only — full pipeline, no DB or API key needed |
 
-### Response Schema
+### Response Example
 ```json
 {
   "status": "complete",
@@ -83,45 +64,14 @@ POST /evaluate-property/{evaluation_id}
   "safety_and_amenities": "...",
   "investment_suitability": "...",
   "verdict_explanation": "...",
-  "key_strengths": ["..."],
-  "key_risks": ["..."],
+  "key_strengths": ["Cap rate of 5.20% meets investor threshold"],
+  "key_risks": ["School score data unavailable — manual verification required"],
   "missing_data_note": "...",
   "policy_highlights": null,
   "admin_review_required": false,
   "validation_errors": [],
-  "validation_warnings": [],
-  "sources": {
-    "recommendation_model": "gemini-2.0-flash",
-    "policy_model": null,
-    "policy_state": null
-  }
+  "sources": { "recommendation_model": "gemini-2.0-flash" }
 }
-```
-
----
-
-## File Structure
-
-```
-backend/app/
-├── api/
-│   ├── evaluation.py               ← POST /evaluate-property/{evaluation_id}
-│   └── test_endpoint.py            ← POST /dev/test-mock (DEV ONLY)
-├── core/
-│   └── db.py                       ← DB session stub (replace with Supabase connection)
-├── models/
-│   └── evaluation_models.py        ← Pydantic request/response schemas
-└── intelligence/
-    ├── __init__.py
-    ├── engine.py                    ← Main orchestrator
-    ├── builder.py                   ← Deterministic payload builder
-    ├── recommendation.py            ← LLM 1 + inject_policy()
-    ├── policy.py                    ← LLM 2 + pgVector RAG stub
-    ├── validator.py                 ← 4-ruleset deterministic validator
-    ├── logger.py                    ← Token + cost audit logger
-    └── prompts/
-        ├── recommendation_v1.txt
-        └── policy_v1.txt
 ```
 
 ---
@@ -137,6 +87,20 @@ backend/app/
 
 ---
 
+## DB Status
+
+| Table | Status | Notes |
+|---|---|---|
+| `property_ai_summary` | ✅ exists + tested | AI results written here |
+| `policy_documents` | ✅ exists | Policy RAG source |
+| `ai_usage_logs` | ✅ exists | Token/cost audit |
+| `property_evaluations` | ❌ not yet | Waiting on team DB migration |
+| `evaluation_components` | ❌ not yet | Waiting on team DB migration |
+| `evaluation_financials` | ❌ not yet | Waiting on team DB migration |
+| `user_onboarding_profiles` | ❌ not yet | Waiting on team DB migration |
+
+---
+
 ## Environment Variables
 
 | Variable | Default |
@@ -144,35 +108,38 @@ backend/app/
 | `GEMINI_API_KEY` | required |
 | `GEMINI_RECOMMENDATION_MODEL` | `gemini-2.0-flash` |
 | `GEMINI_POLICY_MODEL` | `gemini-2.0-flash` |
-| `GEMINI_MAX_TOKENS` | `1500` |
-| `GEMINI_TEMPERATURE` | `0.2` |
-| `RAG_TOP_K` | `5` |
+| `SUPABASE_URL` | required |
+| `SUPABASE_KEY` | required |
 
 ---
 
-## Running & Testing
+## Testing
 
 ```bash
 cd backend && source venv/bin/activate
 
-# 1. Run all unit tests (no API key needed)
+# 1. All unit tests (no API key or DB needed)
 python test_recommendation.py        # Expected: 4/4 pass
 
-# 2. Test via Swagger (no API key needed)
+# 2. Swagger endpoint (no API key needed)
 uvicorn app.main:app --reload
-# Open http://127.0.0.1:8000/docs → POST /dev/test-mock → Execute
-# Expected: 200 OK with full structured JSON
+# POST /dev/test-mock → 200 OK ✅
 
-# 3. Real Gemini call (requires valid key with quota)
-export GEMINI_API_KEY=your_key_here
-python test_recommendation.py
+# 3. Real DB write confirmed
+python3 -c "
+from app.core.supabase_client import supabase
+resp = supabase.table('property_ai_summary').upsert({
+    'evaluation_id': 'test-001', 'property_id': 'test-prop',
+    'traffic_light': 'YELLOW', 'full_output': {}
+}, on_conflict='evaluation_id').execute()
+print('✅', resp.data)
+"
 ```
 
 ---
 
 ## Known Limitations / Next Steps
 
-- **Policy RAG** — `_pgvector_similarity_search()` in `policy.py` is a stub. Wire up once `policy_embeddings` table is populated (Phase 13).
-- **`db.py`** — stub only. Replace with real Supabase/SQLAlchemy session for production endpoint.
-- **`evaluation_orchestrator.py`** — variable polling → AI trigger is a separate service task.
+- **Policy RAG** — `_pgvector_similarity_search()` in `policy.py` is a stub. Wire up once `policy_documents` embeddings are populated.
+- **Production endpoint** — `_load_evaluation_snapshot()` queries are ready but blocked on `property_evaluations`, `evaluation_components`, `evaluation_financials` tables being created.
 - **Real Gemini calls** — personal key has 0 free-tier quota from DZ region. Needs team shared key or billing.

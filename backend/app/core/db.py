@@ -1,14 +1,11 @@
 from typing import Generator
+from supabase import Client
+from app.core.supabase_client import supabase
 
 
-def get_db() -> Generator:
-    """
-    FastAPI dependency that yields a DB session.
-    Currently a stub — yields None so the server starts without a real DB.
-    Replace with real SQLAlchemy/asyncpg session when Supabase is connected.
-    """
-    db = None
+def get_db() -> Generator[Client, None, None]:
+    """FastAPI dependency — yields the shared Supabase client."""
     try:
-        yield db
+        yield supabase
     finally:
         pass

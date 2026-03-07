@@ -20,7 +20,7 @@ When all property variables are settled (`ready` or `failed`), this module build
 | Valid structured JSON output enforced | `recommendation.py` + `validator.py` | ✅ |
 | Failed variable flags passed to AI | `intelligence/builder.py` | ✅ |
 | Post-AI deterministic validation (4 rulesets) | `intelligence/validator.py` | ✅ |
-| Token + cost audit logging | `intelligence/logger.py` | ✅ |
+| Token + cost audit logging to `ai_usage_logs` | `intelligence/logger.py` | ✅ tested |
 | Versioned prompt files | `intelligence/prompts/` | ✅ |
 | API endpoint + Pydantic schemas | `api/evaluation.py` + `models/evaluation_models.py` | ✅ |
 | DB write to `property_ai_summary` | `api/evaluation.py` | ✅ tested |
@@ -42,7 +42,7 @@ POST /evaluate-property/{evaluation_id}
    ├── policy.py          ← LLM 2: RAG policy analysis (TX/WA/NC only)
    ├── recommendation.py  ← LLM 1: tactical data analyst + inject_policy()
    ├── validator.py       ← 4-ruleset deterministic validator
-   └── logger.py          ← token + USD cost logging
+   └── logger.py          ← token + USD cost logging → ai_usage_logs table
 ```
 
 ---
@@ -92,8 +92,8 @@ POST /evaluate-property/{evaluation_id}
 | Table | Status | Notes |
 |---|---|---|
 | `property_ai_summary` | ✅ exists + tested | AI results written here |
+| `ai_usage_logs` | ✅ exists + tested | Token/cost audit confirmed working |
 | `policy_documents` | ✅ exists | Policy RAG source |
-| `ai_usage_logs` | ✅ exists | Token/cost audit |
 | `property_evaluations` | ❌ not yet | Waiting on team DB migration |
 | `evaluation_components` | ❌ not yet | Waiting on team DB migration |
 | `evaluation_financials` | ❌ not yet | Waiting on team DB migration |
@@ -119,21 +119,14 @@ POST /evaluate-property/{evaluation_id}
 cd backend && source venv/bin/activate
 
 # 1. All unit tests (no API key or DB needed)
-python test_recommendation.py        # Expected: 4/4 pass
+python test_recommendation.py        # Expected: 4/4 pass ✅
 
 # 2. Swagger endpoint (no API key needed)
 uvicorn app.main:app --reload
 # POST /dev/test-mock → 200 OK ✅
 
-# 3. Real DB write confirmed
-python3 -c "
-from app.core.supabase_client import supabase
-resp = supabase.table('property_ai_summary').upsert({
-    'evaluation_id': 'test-001', 'property_id': 'test-prop',
-    'traffic_light': 'YELLOW', 'full_output': {}
-}, on_conflict='evaluation_id').execute()
-print('✅', resp.data)
-"
+# 3. DB write to property_ai_summary — confirmed ✅
+# 4. DB write to ai_usage_logs — confirmed ✅
 ```
 
 ---
@@ -141,5 +134,5 @@ print('✅', resp.data)
 ## Known Limitations / Next Steps
 
 - **Policy RAG** — `_pgvector_similarity_search()` in `policy.py` is a stub. Wire up once `policy_documents` embeddings are populated.
-- **Production endpoint** — `_load_evaluation_snapshot()` queries are ready but blocked on `property_evaluations`, `evaluation_components`, `evaluation_financials` tables being created.
+- **Production endpoint** — queries ready but blocked on `property_evaluations`, `evaluation_components`, `evaluation_financials` tables being created.
 - **Real Gemini calls** — personal key has 0 free-tier quota from DZ region. Needs team shared key or billing.

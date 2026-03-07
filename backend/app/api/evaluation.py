@@ -1,21 +1,3 @@
-"""
-evaluation.py
--------------
-FastAPI router for the AI evaluation endpoint.
-
-Endpoint:
-    POST /evaluate-property/{evaluation_id}
-
-Flow:
-    1. Load evaluation snapshot from Supabase
-    2. Fetch user priority_ranking from user_onboarding_profiles
-    3. Guard: all required variables must be settled (ready or failed)
-    4. Check for existing cached AI summary (unless force_refresh)
-    5. Run intelligence pipeline (engine.py)
-    6. Persist result to ai_summaries table
-    7. Return structured JSON to dashboard
-"""
-
 import logging
 from uuid import UUID
 
@@ -50,15 +32,15 @@ def evaluate_property(
     logger.info("evaluate_property called — evaluation_id=%s force_refresh=%s",
                 eval_id_str, body.force_refresh)
 
-    # ── 1. Load evaluation snapshot ────────────────────────────────────────
+    #1. Load evaluation snapshot
     evaluation_data = _load_evaluation_snapshot(db, eval_id_str)
     if not evaluation_data:
         raise HTTPException(status_code=404, detail=f"Evaluation '{eval_id_str}' not found.")
 
-    # ── 2. Fetch user priority ranking ─────────────────────────────────────
+    #2. Fetch user priority ranking
     priority_ranking = _load_priority_ranking(db, evaluation_data.get("user_id"))
 
-    # ── 3. Guard: no pending variables ────────────────────────────────────
+    #3. Guard: no pending variables
     pending_vars = [
         name for name, var in evaluation_data.get("variables", {}).items()
         if var.get("status") == "pending"
@@ -72,14 +54,14 @@ def evaluate_property(
             },
         )
 
-    # ── 4. Check cache ─────────────────────────────────────────────────────
+    #4. Check cache
     if not body.force_refresh:
         cached = _load_cached_summary(db, eval_id_str)
         if cached:
             logger.info("Returning cached AI summary for evaluation_id=%s", eval_id_str)
             return cached
 
-    # ── 5. Run intelligence pipeline ──────────────────────────────────────
+    #5. Run intelligence pipeline
     result = run_intelligence(
         evaluation_id=eval_id_str,
         evaluation_data=evaluation_data,
@@ -87,13 +69,13 @@ def evaluate_property(
         db_session=db,
     )
 
-    # ── 6. Persist result ──────────────────────────────────────────────────
+    #6. Persist result
     _persist_ai_summary(db, eval_id_str, result)
 
     return result
 
 
-# ── DB helpers using Supabase client ──────────────────────────────────────
+#DB helpers using Supabase client
 
 def _load_evaluation_snapshot(db: Client, evaluation_id: str) -> dict | None:
     """
@@ -101,7 +83,7 @@ def _load_evaluation_snapshot(db: Client, evaluation_id: str) -> dict | None:
     Joins: property_evaluations → properties → evaluation_components → evaluation_financials
     """
     try:
-        # ── property_evaluations + properties (via foreign key) ────────────
+        #property_evaluations + properties (via foreign key)
         eval_resp = db.table("property_evaluations") \
             .select(
                 "id, user_id, status, "
@@ -118,7 +100,7 @@ def _load_evaluation_snapshot(db: Client, evaluation_id: str) -> dict | None:
         eval_row = eval_resp.data
         prop = eval_row.get("properties") or {}
 
-        # ── evaluation_components (variables + verdict) ────────────────────
+        #evaluation_components (variables + verdict)
         comp_resp = db.table("evaluation_components") \
             .select("component_name, component_payload") \
             .eq("evaluation_id", evaluation_id) \
@@ -140,7 +122,7 @@ def _load_evaluation_snapshot(db: Client, evaluation_id: str) -> dict | None:
                     "fetched_at": payload.get("fetched_at"),
                 }
 
-        # ── evaluation_financials ──────────────────────────────────────────
+        #evaluation_financials
         fin_resp = db.table("evaluation_financials") \
             .select("monthly_cash_flow, cap_rate, projected_5yr_roi, estimated_value") \
             .eq("evaluation_id", evaluation_id) \
@@ -200,19 +182,19 @@ def _load_priority_ranking(db: Client, user_id: str | None) -> list:
 
 
 def _load_cached_summary(db: Client, evaluation_id: str) -> dict | None:
-    """Check for an existing validated AI summary in ai_summaries."""
+    """Check for an existing validated AI summary in property_ai_summary."""
     try:
-        resp = db.table("ai_summaries") \
-            .select("summary_json") \
+        resp = db.table("property_ai_summary") \
+            .select("full_output") \
             .eq("evaluation_id", evaluation_id) \
-            .eq("validated", True) \
+            .eq("admin_review_required", False) \
             .order("created_at", desc=True) \
             .limit(1) \
             .maybe_single() \
             .execute()
 
-        if resp.data and resp.data.get("summary_json"):
-            return resp.data["summary_json"]
+        if resp.data and resp.data.get("full_output"):
+            return resp.data["full_output"]
         return None
 
     except Exception as exc:

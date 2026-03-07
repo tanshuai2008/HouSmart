@@ -7,11 +7,13 @@ logger = logging.getLogger(__name__)
 
 # Approximate cost per 1M tokens (USD)
 COST_PER_1M_INPUT_TOKENS: dict[str, float] = {
+    "gemini-2.5-flash":   0.075,   # input
     "gemini-2.0-flash":   0.075,   # input
     "gemini-1.5-flash":   0.075,   # input
     "gemini-1.5-pro":     1.25,    # input
 }
 COST_PER_1M_OUTPUT_TOKENS: dict[str, float] = {
+    "gemini-2.5-flash":   0.30,
     "gemini-2.0-flash":   0.30,
     "gemini-1.5-flash":   0.30,
     "gemini-1.5-pro":     5.00,
@@ -87,6 +89,8 @@ def log_usage(
 def _compute_cost(model: Optional[str], input_tokens: int, output_tokens: int) -> float:
     if not model:
         return 0.0
+    # Gemini returns full path e.g. "models/gemini-2.5-flash" — strip the prefix
+    model = model.replace("models/", "")
     input_cost  = (input_tokens  / 1_000_000) * COST_PER_1M_INPUT_TOKENS.get(model, 0.0)
     output_cost = (output_tokens / 1_000_000) * COST_PER_1M_OUTPUT_TOKENS.get(model, 0.0)
     return input_cost + output_cost

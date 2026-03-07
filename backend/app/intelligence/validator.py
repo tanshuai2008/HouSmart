@@ -98,14 +98,21 @@ def _check_missing_data_disclaimers(ai_text: str, payload: dict) -> list[str]:
             null_vars.add(var)
 
     for var_name in null_vars:
-        for kw in MISSING_DATA_KEYWORDS.get(var_name, []):
-            if kw in lower_text:
-                if not any(term in lower_text for term in DISCLAIMER_TERMS):
-                    errors.append(
-                        f"AI referenced '{kw}' but variable '{var_name}' is null/failed. "
-                        f"AI must include a disclaimer (unavailable/unknown/manual verification)."
-                    )
-                break
+        keywords = MISSING_DATA_KEYWORDS.get(var_name, [])
+        for kw in keywords:
+            if kw not in lower_text:
+                continue
+            # Check a 300-char window around the keyword mention, not the whole text
+            kw_index     = lower_text.find(kw)
+            window_start = max(0, kw_index - 150)
+            window_end   = min(len(lower_text), kw_index + 150)
+            window       = lower_text[window_start:window_end]
+            if not any(term in window for term in DISCLAIMER_TERMS):
+                errors.append(
+                    f"AI referenced '{kw}' but variable '{var_name}' is null/failed. "
+                    f"AI must include a disclaimer (unavailable/unknown/manual verification) near this mention."
+                )
+            break
     return errors
 
 

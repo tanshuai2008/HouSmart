@@ -1,14 +1,18 @@
+import logging
+from datetime import datetime, timezone
 from typing import Dict
 from app.data.poi_categories import POI_CATEGORIES
+from app.services.google_places_service import GooglePlacesService
 from app.services.poi_repository import POIRepository
-from app.services.osm_fetch_service import OSMFetchService
+
+logger = logging.getLogger(__name__)
 
 
 class POIService:
 
     def __init__(self):
         self.repository = POIRepository()
-        self.fetch_service = OSMFetchService()
+        self.google_fetch_service = GooglePlacesService()
 
     def _calculate_score(self, count: int, threshold: int, weight: float) -> float:
         """
@@ -36,36 +40,26 @@ class POIService:
             ["school"]
         )
     
+        cache_hit = existing > 0
+        source = "osm_poi_cache"
+        api_used = "cache"
+
         if existing == 0:
-        
-            pois = self.fetch_service.fetch_all_pois(
-                latitude,
-                longitude,
-                max_radius
-            )
-    
-            print("Fetched POIs:", len(pois))
-    
+            source = "google_places"
+            api_used = "google_places"
             rows_to_insert = []
-    
-            for poi in pois:
-            
-                if "tags" not in poi:
-                    continue
-                
-                for key in ["amenity", "shop", "leisure", "railway"]:
-                
-                    if key in poi["tags"]:
-                    
-                        rows_to_insert.append({
-                            "osm_key": key,
-                            "osm_value": poi["tags"][key],
-                            "latitude": poi["lat"],
-                            "longitude": poi["lon"],
-                            "location": f"SRID=4326;POINT({poi['lon']} {poi['lat']})"
-                        })
-    
+            try:
+                rows_to_insert = self.google_fetch_service.fetch_all_pois(
+                    latitude,
+                    longitude,
+                    max_radius
+                )
+                logger.info("Fetched POIs from Google Places: %s", len(rows_to_insert))
+            except Exception as exc:
+                logger.warning("Google Places fetch failed: %s", exc)
+
             self.repository.bulk_insert_pois(rows_to_insert)
+            cache_hit = False
     
         for name, category in POI_CATEGORIES.items():
         
@@ -91,5 +85,12 @@ class POIService:
             total_score += score
     
         results["composite_score"] = round(total_score, 4)
+        latest_ts = self.repository.latest_poi_timestamp(latitude, longitude, max_radius)
+        results["_meta"] = {
+            "source": source,
+            "api_used": api_used,
+            "cache_hit": cache_hit,
+            "data_updated_at": latest_ts or datetime.now(timezone.utc).isoformat(),
+        }
     
         return results

@@ -46,3 +46,20 @@ class POIRepository:
             return
 
         self.db.table("osm_poi_cache").insert(rows).execute()
+
+    def latest_poi_timestamp(self, latitude, longitude, radius_meters):
+        """
+        Returns latest created_at for cached POIs within the given radius.
+        """
+        try:
+            response = self.db.rpc(
+                "latest_poi_timestamp",
+                {
+                    "lat": latitude,
+                    "lng": longitude,
+                    "radius_meters": radius_meters,
+                }
+            ).execute()
+            return response.data
+        except Exception:
+            return None

@@ -104,6 +104,7 @@ create table if not exists osm_poi_cache (
     id bigserial primary key,
     osm_key text not null,
     osm_value text not null,
+    provider text not null default 'google_places',
     latitude double precision not null,
     longitude double precision not null,
     location geography(Point, 4326) not null,

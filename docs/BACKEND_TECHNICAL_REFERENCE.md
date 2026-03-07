@@ -56,7 +56,7 @@ Responsibilities:
 ### 3.1 Settings Model (`app/core/config.py`)
 Core env-backed settings include:
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_KEY` / `SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY`
 - `CENSUS_API_KEY`
 - Flood settings: FEMA endpoint/timeouts, flood cache TTL
 - Transit settings: Overpass mirrors/timeouts, transit cache TTL

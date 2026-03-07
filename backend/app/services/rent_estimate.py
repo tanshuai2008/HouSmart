@@ -12,8 +12,10 @@ from app.services.rent_cache import (
 from app.utils.logging import get_logger
 
 load_dotenv()
-api_key = os.getenv("RENT_ESTIMATE_API_KEY_RentCast")
-RENTCAST_ENDPOINT = "https://api.rentcast.io/v1/avm/rent/long-term"
+api_key = os.getenv("RENTCAST_API_KEY")
+RENTCAST_ENDPOINT = os.getenv(
+    "RENTCAST_ENDPOINT", "https://api.rentcast.io/v1/avm/rent/long-term"
+)
 
 
 PROPERTY_TYPE_LIST =[

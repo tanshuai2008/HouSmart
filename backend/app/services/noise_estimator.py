@@ -1,8 +1,8 @@
 import math
-import time
 import requests
 
 from app.config.db import supabase
+from app.core.config import settings
 from app.services.geocode import geocode_address
 
 
@@ -26,60 +26,52 @@ def haversine(lat1, lon1, lat2, lon2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-# --------------------------------------------------
-# Find nearest road using OpenStreetMap Overpass
-# --------------------------------------------------
-def nearest_road_distance(lat, lon):
+def _nearest_road_distance_google(lat, lon):
+    if not settings.GOOGLE_MAPS_API_KEY:
+        return None
 
-    query = f"""
-    [out:json];
-    way(around:200,{lat},{lon})["highway"];
-    out geom;
-    """
-
-    url = "https://overpass-api.de/api/interpreter"
-
-    headers = {
-        "User-Agent": "HouSmart/1.0"
+    url = "https://roads.googleapis.com/v1/nearestRoads"
+    params = {
+        "points": f"{lat},{lon}",
+        "key": settings.GOOGLE_MAPS_API_KEY,
     }
 
-    # Retry mechanism
-    for attempt in range(3):
-        try:
+    try:
+        res = requests.get(
+            url,
+            params=params,
+            timeout=settings.GOOGLE_ROADS_HTTP_TIMEOUT_SECONDS,
+        )
+        res.raise_for_status()
+        data = res.json()
+    except Exception:
+        return None
 
-            res = requests.post(
-                url,
-                data=query,
-                headers=headers,
-                timeout=30
-            )
-
-            if res.status_code != 200:
-                time.sleep(2)
-                continue
-
-            data = res.json()
-            break
-
-        except Exception:
-            time.sleep(2)
-
-    else:
+    snapped = data.get("snappedPoints") or []
+    if not snapped:
         return None
 
     min_dist = float("inf")
-
-    for element in data.get("elements", []):
-        for point in element.get("geometry", []):
-            d = haversine(lat, lon, point["lat"], point["lon"])
-
-            if d < min_dist:
-                min_dist = d
+    for point in snapped:
+        location = point.get("location", {})
+        road_lat = location.get("latitude")
+        road_lng = location.get("longitude")
+        if road_lat is None or road_lng is None:
+            continue
+        d = haversine(lat, lon, road_lat, road_lng)
+        if d < min_dist:
+            min_dist = d
 
     if min_dist == float("inf"):
         return None
-
     return round(min_dist, 2)
+
+
+def nearest_road_distance(lat, lon):
+    distance = _nearest_road_distance_google(lat, lon)
+    if distance is not None:
+        return distance, "google_roads", "Google Maps Roads API"
+    return None, "unknown", "Unknown"
 
 
 # --------------------------------------------------
@@ -104,14 +96,15 @@ def classify_noise(distance):
 # Estimate Noise Level
 # --------------------------------------------------
 def estimate_noise(lat: float, lon: float):
-    distance = nearest_road_distance(lat, lon)
+    distance, api_used, source = nearest_road_distance(lat, lon)
     noise = classify_noise(distance)
     return {
         "latitude": lat,
         "longitude": lon,
         "noise_level": noise,
         "distance_to_road_m": distance,
-        "source": "OpenStreetMap",
+        "source": source,
+        "api_used": api_used,
     }
 
 
@@ -147,6 +140,7 @@ def estimate_noise_from_address(address: str):
             "noise_level": record["noise_level"],
             "distance_to_road_m": record["distance_to_road"],
             "source": "Supabase Cache",
+            "api_used": "cache",
         }
 
     # --------------------------------------------------
@@ -175,7 +169,8 @@ def estimate_noise_from_address(address: str):
         "state": state,
         "noise_level": noise,
         "distance_to_road_m": distance,
-        "source": "OpenStreetMap",
+        "source": result["source"],
+        "api_used": result["api_used"],
     }
 
 

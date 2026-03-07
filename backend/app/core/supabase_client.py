@@ -3,7 +3,6 @@ from app.core.config import settings
 
 supabase_key = (
     settings.SUPABASE_SERVICE_ROLE_KEY
-    or settings.SUPABASE_KEY
     or settings.SUPABASE_ANON_KEY
 )
 

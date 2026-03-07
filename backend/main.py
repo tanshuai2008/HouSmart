@@ -2,6 +2,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from app.middleware.api_call_logger import api_call_logger_middleware
 from app.api.routes import (
     amenity_score,
     crime_score,
@@ -14,12 +15,15 @@ from app.api.routes import (
     rent_estimate,
     transit,
 )
+from app.api.routes import auth
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(title="HouSmart API")
+app.middleware("http")(api_call_logger_middleware)
 
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(education.router)
 app.include_router(income.router)
 app.include_router(amenity_score.router)

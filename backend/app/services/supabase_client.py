@@ -13,9 +13,9 @@ def _get_env(var_name: str) -> str:
     return value
 
 def _get_supabase_key() -> str:
-    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+    key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_ANON_KEY")
     if not key:
-        raise SupabaseConfigError("Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_KEY for Supabase access")
+        raise SupabaseConfigError("Set SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY for Supabase access")
     return key
 
 @lru_cache(maxsize=1)

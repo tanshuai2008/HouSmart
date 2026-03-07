@@ -1,6 +1,7 @@
 import requests
+import os
 
-NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+NOMINATIM_URL = os.getenv("NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
 
 
 def geocode_address(address: str):

@@ -8,10 +8,12 @@ class Settings(BaseSettings):
     SUPABASE_URL: str = ""
     SUPABASE_SERVICE_ROLE_KEY: str = ""
     SUPABASE_ANON_KEY: str = ""
-    SUPABASE_KEY: str = ""
 
     # Amenity/Education/Income
     CENSUS_API_KEY: str = ""
+    GOOGLE_MAPS_API_KEY: str = ""
+    GOOGLE_PLACES_HTTP_TIMEOUT_SECONDS: int = 15
+    GOOGLE_ROADS_HTTP_TIMEOUT_SECONDS: int = 15
 
     # Flood service
     FLOOD_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 180
@@ -22,13 +24,6 @@ class Settings(BaseSettings):
 
     # Transit service
     TRANSIT_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 30
-    OVERPASS_HTTP_TIMEOUT_SECONDS: int = 30
-    OVERPASS_QUERY_TIMEOUT_SECONDS: int = 25
-    OVERPASS_MIRRORS: str = (
-        "https://overpass-api.de/api/interpreter,"
-        "https://overpass.kumi.systems/api/interpreter,"
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
-    )
 
     # Geocoding
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"

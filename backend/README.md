@@ -15,12 +15,12 @@ Copy `.env.example` to `.env` and fill values.
 
 Required for startup:
 - `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_KEY`)
+- `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_ANON_KEY`)
 
 Required for full endpoint coverage:
 - `DATABASE_URL` (for SQL migrations)
 - `CENSUS_API_KEY`
-- `RENT_ESTIMATE_API_KEY_RentCast`
+- `RENTCAST_API_KEY`
 - `GEOCODIO_API_KEY`
 - `FBI_API_KEY`
 

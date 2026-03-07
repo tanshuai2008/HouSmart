@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 # Model config
 # LLM 1: cheaper + faster model for factual data interpretation
 RECOMMENDATION_MODEL = os.getenv("GEMINI_RECOMMENDATION_MODEL", "gemini-2.0-flash")
-MAX_OUTPUT_TOKENS    = int(os.getenv("GEMINI_MAX_TOKENS", "1500"))
+MAX_OUTPUT_TOKENS    = int(os.getenv("GEMINI_MAX_TOKENS", "4096"))
 TEMPERATURE          = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))  # low = consistent
 
 #Prompt template path
@@ -199,6 +199,18 @@ def _parse_json_response(raw_text: str) -> dict:
     """
     # Strip markdown code fences if present despite response_mime_type enforcement
     cleaned = re.sub(r"```(?:json)?", "", raw_text).strip().rstrip("```").strip()
+
+    # Detect truncation early — a complete JSON object must end with "}"
+    if not cleaned.rstrip().endswith("}"):
+        logger.error(
+            "AI response appears truncated (does not end with '}'). "
+            "Increase GEMINI_MAX_TOKENS. Last 100 chars: ...%s", cleaned[-100:]
+        )
+        raise ValueError(
+            "AI response was truncated mid-JSON. Increase GEMINI_MAX_TOKENS "
+            f"(currently {MAX_OUTPUT_TOKENS}). Last 100 chars: ...{cleaned[-100:]}"
+        )
+
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError as exc:

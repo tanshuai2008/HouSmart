@@ -84,16 +84,10 @@ export default function AnalysisProcessingView() {
 
                 {/* Property Card */}
                 <div className="flex items-center gap-4 p-4 border border-gray-200 rounded-xl shadow-sm bg-white">
-                    <Image
-                        src={propertyImage}
-                        alt="Property"
-                        className="w-20 h-20 rounded-lg object-cover"
-                        priority
-                    />
+                    <div className="w-20 h-20 rounded-lg bg-slate-100 border border-slate-200" />
                     <div className="flex flex-col">
                         <h2 className="text-lg font-bold text-gray-900">1248 Highland Avenue, Seattle WA</h2>
                         <p className="text-sm text-gray-500">Queen Anne, Seattle WA</p>
-                        <p className="text-sm text-gray-400 mt-1">Asking Price: $1,195,000</p>
                     </div>
                 </div>
 

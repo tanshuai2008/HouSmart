@@ -1,11 +1,13 @@
 "use client";
 
-
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import searchIcon from "@/assets/search/icons/search.svg";
 import locationIcon from "@/assets/search/icons/location-pin.svg";
 
 export const PropertySearchHero = () => {
+    const router = useRouter();
+
     return (
         <div className="flex flex-col items-center pt-10 pb-6 w-full max-w-3xl mx-auto px-4">
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">
@@ -20,6 +22,9 @@ export const PropertySearchHero = () => {
                     type="text"
                     placeholder="Enter full property address..."
                     className="block w-full pl-12 pr-4 py-4 border border-gray-100 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter") router.push("/analyze");
+                    }}
                 />
             </div>
 
@@ -28,7 +33,10 @@ export const PropertySearchHero = () => {
                     RECENT SEARCHES
                 </h2>
 
-                <div className="w-full flex items-center p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.02)]">
+                <div
+                    className="w-full flex items-center p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer shadow-[0_2px_8px_rgba(0,0,0,0.02)]"
+                    onClick={() => router.push("/analyze")}
+                >
                     <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center mr-3 border border-gray-100">
                         <Image src={locationIcon} alt="Location" width={16} height={16} />
                     </div>

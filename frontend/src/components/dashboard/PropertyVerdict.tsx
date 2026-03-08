@@ -1,11 +1,9 @@
 "use client";
 import React from "react";
 import Image from "next/image";
-import { ArrowRight, Upload, Download, TrendingUp, AlertTriangle } from "lucide-react";
+import { ArrowRight, Upload, Download, TrendingUp, AlertTriangle, Bookmark, Share2 } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { PropertyInsight } from "@/lib/mockData";
-
-import aiStarIcon from "@/assets/dashboard/icons/ai-star.svg";
 
 interface PropertyVerdictProps {
     insight: PropertyInsight & { undervaluedBy?: string };
@@ -13,31 +11,32 @@ interface PropertyVerdictProps {
 
 export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => {
     return (
-        <div className="flex flex-col gap-4 px-5 pt-4 pb-5">
+        <div className="flex flex-col gap-5 px-5 pt-4 pb-5">
             {/* Badge row + action buttons */}
             <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <Badge variant="strong-buy">{insight.verdict}</Badge>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-[#027A48]">
-                        <Image
-                            src={aiStarIcon}
-                            alt="AI"
-                            width={10}
-                            height={10}
-                        />
+                    <span className="flex items-center gap-1.5 text-[11px] font-bold text-[#027A48]">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#027A48]">
+                            <path d="M12 2v20" />
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+                        </svg>
                         AI CONFIDENCE: {insight.aiConfidence}%
                     </span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-xs font-semibold px-3.5 py-2 rounded-lg hover:bg-[#1D2939] transition">
+                <div className="flex items-center gap-2">
+                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-xs font-semibold px-4 py-2 rounded-full ring-2 ring-offset-2 ring-transparent ring-offset-white hover:ring-[#101828] transition mr-2">
                         View Listing
-                        <ArrowRight size={11} />
+                        <ArrowRight size={13} />
                     </button>
-                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#F9FAFB] transition">
-                        <Upload size={11} /> Share
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                        <Bookmark size={13} /> Save Property
                     </button>
-                    <button className="flex items-center gap-1.5 border border-[#D0D5DD] text-[#344054] text-xs font-medium px-3 py-2 rounded-lg hover:bg-[#F9FAFB] transition">
-                        <Download size={11} /> Report
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                        <Share2 size={13} /> Share
+                    </button>
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                        <Download size={13} /> Report
                     </button>
                 </div>
             </div>
@@ -112,18 +111,18 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
 
             {/* Footer */}
             <div className="flex items-center justify-between pt-3 border-t border-[#F3F4F6]">
-                <div className="flex items-center gap-4 text-[11px] text-[#6B7280]">
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#D0D5DD] inline-block" />
+                <div className="flex items-center gap-4 text-[11px] text-[#9CA3AF]">
+                    <span className="flex items-center gap-2">
+                        <span className="w-[5px] h-[5px] rounded-full bg-[#12B76A] inline-block" />
                         {insight.dataPoints} Data Points
                     </span>
-                    <span className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#D0D5DD] inline-block" />
+                    <span className="flex items-center gap-2">
+                        <span className="w-[5px] h-[5px] rounded-full bg-[#12B76A] inline-block" />
                         {insight.comparableSales} Comparable Sales
                     </span>
                 </div>
-                <span className="text-[11px] text-[#9CA3AF] flex items-center gap-1">
-                    <svg className="w-3 h-3 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <span className="text-[11px] text-[#9CA3AF] flex items-center gap-1.5">
+                    <svg className="w-3.5 h-3.5 text-[#9CA3AF]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <circle cx="12" cy="12" r="10" strokeWidth="2" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6l4 2" />
                     </svg>

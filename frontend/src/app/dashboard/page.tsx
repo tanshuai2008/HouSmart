@@ -29,7 +29,7 @@ export default function DashboardPage() {
     } = mockDashboardData;
 
     return (
-        <div className="min-h-screen bg-[#F3F4F6] font-sans">
+        <div className="min-h-screen bg-[#F3F4F6] font-sans relative">
             <DashboardHeader />
 
             <main className="px-5 py-5 max-w-[1340px] mx-auto">
@@ -64,8 +64,8 @@ export default function DashboardPage() {
                     <div className="flex flex-col gap-4">
                         {/* Property Context */}
                         <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm overflow-hidden">
-                            <div className="px-4 pt-4 pb-2">
-                                <span className="text-[10px] font-semibold text-[#6B7280] tracking-[0.08em] uppercase">
+                            <div className="px-5 pt-4 pb-3 border-b border-[#F3F4F6]">
+                                <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase">
                                     Property Context
                                 </span>
                             </div>
@@ -78,6 +78,12 @@ export default function DashboardPage() {
                 </div>
             </main>
 
+            {/* Floating Chat Button */}
+            <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-[#101828] flex items-center justify-center shadow-2xl hover:bg-[#1D2939] transition z-50">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+            </button>
         </div>
     );
 }

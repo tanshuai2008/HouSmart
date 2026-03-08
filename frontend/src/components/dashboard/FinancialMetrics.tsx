@@ -1,31 +1,15 @@
 "use client";
 import React from "react";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 import { FinancialMetric } from "@/lib/mockData";
 
 interface FinancialMetricsProps {
     metrics: FinancialMetric[];
 }
 
-const trendIconMap = {
-    up: TrendingUp,
-    down: TrendingDown,
-    neutral: Minus,
-};
-
-const trendColorClasses: Record<FinancialMetric["trendColor"], string> = {
-    green: "text-[#027A48]",
-    red: "text-[#B42318]",
-    orange: "text-[#B54708]",
-    neutral: "text-[#6B7280]",
-};
-
 export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({ metrics }) => {
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {metrics.map((metric) => {
-                const TrendIcon = trendIconMap[metric.trend];
-                const colorClass = trendColorClasses[metric.trendColor];
                 return (
                     <div
                         key={metric.label}
@@ -37,9 +21,8 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({ metrics }) =
                         <span className="text-[22px] font-bold text-[#101828] leading-tight mt-0.5">
                             {metric.value}
                         </span>
-                        <div className={`flex items-center gap-1 ${colorClass} mt-0.5`}>
-                            <TrendIcon size={11} />
-                            <span className="text-[11px] font-medium">{metric.subLabel}</span>
+                        <div className="flex items-center gap-1 text-[#6B7280] mt-0.5">
+                            <span className="text-[11px] font-medium leading-tight">{metric.subLabel}</span>
                         </div>
                     </div>
                 );

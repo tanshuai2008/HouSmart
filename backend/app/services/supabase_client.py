@@ -1,10 +1,17 @@
 from __future__ import annotations
 import os
+from pathlib import Path
 from functools import lru_cache
-from supabase import Client, create_client
+from dotenv import load_dotenv
+from supabase import Client
+from app.core.supabase_client import supabase as core_supabase
 
 class SupabaseConfigError(RuntimeError):
     """Raised when required Supabase environment variables are missing."""
+
+# Ensure .env is loaded even for direct script execution from different CWDs.
+_BACKEND_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(_BACKEND_DIR / ".env")
 
 def _get_env(var_name: str) -> str:
     value = os.getenv(var_name)
@@ -20,10 +27,10 @@ def _get_supabase_key() -> str:
 
 @lru_cache(maxsize=1)
 def get_supabase() -> Client:
-    """Return a cached Supabase client instance using the official API."""
-    url = _get_env("SUPABASE_URL")
-    key = _get_supabase_key()
-    return create_client(url, key)
+    """Return a cached Supabase client instance."""
+    _get_env("SUPABASE_URL")
+    _get_supabase_key()
+    return core_supabase
 
 def ensure_supabase_ready() -> None:
     """Force the Supabase client to initialize to fail fast during startup."""

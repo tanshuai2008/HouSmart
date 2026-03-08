@@ -1,29 +1,16 @@
 import asyncio
 import httpx
 import logging
-import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.core.config import settings
 from app.core.supabase_client import supabase
+from app.utils.geo import haversine_meters
 
 logger = logging.getLogger(__name__)
 
 GOOGLE_PLACES_NEARBY_URL = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
-
-
-def _haversine_meters(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    radius_m = 6371000
-    phi1, phi2 = math.radians(lat1), math.radians(lat2)
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lng2 - lng1)
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    )
-    return radius_m * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
 
 def _compute_transit_score(
     bus_count: int,
@@ -156,7 +143,7 @@ async def _fetch_google_transit(
             else:
                 bus_count += 1
 
-            dist = _haversine_meters(lat, lng, stop_lat, stop_lng)
+            dist = haversine_meters(lat, lng, stop_lat, stop_lng)
             if nearest_meters is None or dist < nearest_meters:
                 nearest_meters = dist
 

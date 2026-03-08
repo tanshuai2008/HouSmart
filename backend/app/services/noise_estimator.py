@@ -1,30 +1,9 @@
-import math
 import requests
 
 from app.config.db import supabase
 from app.core.config import settings
 from app.services.geocode import geocode_address
-
-
-# --------------------------------------------------
-# Haversine Distance (meters)
-# --------------------------------------------------
-def haversine(lat1, lon1, lat2, lon2):
-    R = 6371000
-
-    phi1 = math.radians(lat1)
-    phi2 = math.radians(lat2)
-
-    dphi = math.radians(lat2 - lat1)
-    dlambda = math.radians(lon2 - lon1)
-
-    a = (
-        math.sin(dphi / 2) ** 2
-        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
-    )
-
-    return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-
+from app.utils.geo import haversine_meters
 
 def _nearest_road_distance_google(lat, lon):
     if not settings.GOOGLE_MAPS_API_KEY:
@@ -58,7 +37,7 @@ def _nearest_road_distance_google(lat, lon):
         road_lng = location.get("longitude")
         if road_lat is None or road_lng is None:
             continue
-        d = haversine(lat, lon, road_lat, road_lng)
+        d = haversine_meters(lat, lon, road_lat, road_lng)
         if d < min_dist:
             min_dist = d
 

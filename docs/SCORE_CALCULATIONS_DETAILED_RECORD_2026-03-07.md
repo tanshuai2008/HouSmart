@@ -13,6 +13,7 @@ Scope: all score-producing logic reachable from `backend/main.py` active routes.
   1. Check nearby POI cache viability (school count probe in 2000m via `count_pois` RPC).
   2. If miss: fetch POIs from Google Places and insert into `osm_poi_cache`.
   3. For each configured category, compute count + score from cached rows using `count_pois`.
+  4. If PostgREST cannot resolve overloaded `count_pois` signatures (`PGRST203`), fallback to direct `osm_poi_cache` read with bounding box + haversine distance filtering in repository code.
 
 ## 1.2 Category configuration (weights, thresholds, radii)
 - Defined in `backend/app/data/poi_categories.py`.
@@ -204,6 +205,7 @@ Scope: all score-producing logic reachable from `backend/main.py` active routes.
 
 1. Numeric scores:
    - `amenity composite_score` (0.0 to 1.0)
+   - `school housmart_school_score` (numeric score returned per school row)
    - `transit_score` (5.0 to 100.0)
    - `flood_score` (discrete mapped values, higher is safer)
    - `crime safety_score` (0.0 to 100.0)
@@ -212,3 +214,22 @@ Scope: all score-producing logic reachable from `backend/main.py` active routes.
 3. Not score-based:
    - `rent_estimate` endpoint returns rent values (estimation, not score)
    - education/income endpoints return census metrics (not score)
+
+## 7. School Scores (`POST /api/school_scores`)
+
+## 7.1 Entry point and flow
+- Route: `backend/app/api/routes/school_scores.py`
+- Service: `backend/app/services/school_scores_service.py`
+- Flow:
+  1. Normalize input address.
+  2. Query RPC `get_property_school_scores(search_address)`.
+  3. If no rows and ZIP exists in address, fallback query on `school_master` by `zip_code`, ordered by `housmart_school_score desc`.
+
+## 7.2 Returned score fields
+- `housmart_school_score`
+- `s_academic`
+- `s_resource`
+- `s_equity`
+
+Note:
+- The formula for these school score components is produced by offline school-data pipeline jobs and SQL assets, not calculated inline by the API route at request time.

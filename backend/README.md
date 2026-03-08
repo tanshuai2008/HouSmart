@@ -32,6 +32,10 @@ python app/scripts/apply_migrations.py
 
 This creates all currently-used backend tables and the `count_pois` SQL function.
 
+Note:
+- If your database has multiple overloaded `count_pois` functions, PostgREST can return `PGRST203` ambiguity errors.
+- The backend currently includes a repository fallback for amenity counts, but DB cleanup (single function signature) is recommended.
+
 ## 4) Optional data loaders
 
 Crime score crosswalk requires data in `leaic_crosswalk`:
@@ -51,3 +55,21 @@ python app/scripts/ingest_redfin.py
 ```bash
 uvicorn main:app --reload --port 8000
 ```
+
+## 6) Active API endpoints
+
+- `GET /api/health`
+- `POST /auth/register`
+- `POST /auth/login`
+- `POST /auth/google`
+- `POST /auth/verify`
+- `POST /api/education_level`
+- `POST /api/median_income`
+- `POST /api/amenity_score`
+- `POST /api/crime_score`
+- `POST /api/flood_risk_score`
+- `POST /api/transit_score`
+- `POST /api/rent_estimate`
+- `POST /api/noise_estimate_score`
+- `POST /api/median_property_price`
+- `POST /api/school_scores`

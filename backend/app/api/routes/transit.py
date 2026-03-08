@@ -28,7 +28,7 @@ async def get_transit_score_by_address_endpoint(request: AddressTransitRequest):
 
     How it is calculated:
     - Geocodes address to latitude/longitude.
-    - Finds transit stops within configured radius (OSM-backed transit dataset flow).
+    - Finds transit stops within configured radius (Google Places transit search).
     - Scores accessibility based on proximity and stop availability; persists result to transit_scores.
 
     What can be extracted:

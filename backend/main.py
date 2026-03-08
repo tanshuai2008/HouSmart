@@ -13,6 +13,7 @@ from app.api.routes import (
     median_house_price,
     noise_estimator,
     rent_estimate,
+    school_scores,
     transit,
 )
 from app.api.routes import auth
@@ -33,6 +34,7 @@ app.include_router(transit.router)
 app.include_router(rent_estimate.router)
 app.include_router(noise_estimator.router)
 app.include_router(median_house_price.router)
+app.include_router(school_scores.router)
 
 @app.get("/")
 def root():

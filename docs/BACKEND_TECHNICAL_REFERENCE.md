@@ -18,6 +18,7 @@ Primary app entrypoint:
 
 Active routers mounted by `main.py`:
 - `/api/health`
+- `/auth/*`
 - `/api/education_level`
 - `/api/median_income`
 - `/api/amenity_score`
@@ -27,6 +28,7 @@ Active routers mounted by `main.py`:
 - `/api/rent_estimate`
 - `/api/noise_estimate_score`
 - `/api/median_property_price`
+- `/api/school_scores`
 
 Also available:
 - `/` root heartbeat message
@@ -41,7 +43,7 @@ Responsibilities:
 
 ### 2.2 Service/Core Layer (`app/services`, `app/core`)
 Responsibilities:
-- External API calls (Census, OSM, FEMA, FBI, Geocodio, RentCast)
+- External API calls (Census, Google Maps, FEMA, FBI, Geocodio, RentCast)
 - Scoring logic
 - Caching logic
 - Supabase read/write operations
@@ -59,7 +61,7 @@ Core env-backed settings include:
 - `SUPABASE_SERVICE_ROLE_KEY` / `SUPABASE_ANON_KEY`
 - `CENSUS_API_KEY`
 - Flood settings: FEMA endpoint/timeouts, flood cache TTL
-- Transit settings: Overpass mirrors/timeouts, transit cache TTL
+- Transit settings: Google Places timeout and transit cache TTL
 - Nominatim settings: URL + timeout
 
 ### 3.2 Supabase Clients
@@ -153,10 +155,22 @@ Columns:
 
 ### 4.10 `osm_poi_cache` + `count_pois(...)`
 Purpose:
-- Stores fetched OSM POIs with geography point.
+- Stores fetched Google Places POIs with geography point.
 - SQL function `count_pois` does radius-based POI counting using `ST_DWithin`.
 
 This is mandatory for amenity scoring.
+
+### 4.11 `school_master` + `get_property_school_scores(...)`
+Purpose:
+- Stores school-level scoring fields for school-score lookup.
+- SQL/RPC function `get_property_school_scores(search_address)` returns address-matched school scores.
+
+Runtime usage:
+- `/api/school_scores` calls RPC first, then ZIP-code fallback query on `school_master`.
+
+### 4.12 `api_call_logs`
+Purpose:
+- Request/response observability table populated by middleware for API auditing.
 
 ## 5. Endpoint-by-Endpoint Deep Dive
 
@@ -223,9 +237,11 @@ Execution flow:
 POI service algorithm:
 1. Calls DB function `count_pois` with a sentinel check (`amenity=school`, radius 2000m)
 2. If 0 existing POIs in area:
-- Fetch POIs from Overpass API via `OSMFetchService.fetch_all_pois`
+- Fetch POIs from Google Places via `GooglePlacesService.fetch_all_pois`
 - Normalize and insert rows into `osm_poi_cache`
 3. For each category in `POI_CATEGORIES`, count POIs in category radius
+   - Primary path: `count_pois` RPC
+   - Fallback path: direct `osm_poi_cache` query + haversine filter when PostgREST returns `PGRST203` overload ambiguity
 4. Category score formula:
 - `ratio = min(count / threshold, 1.0)`
 - `score = round(ratio * weight, 4)`
@@ -334,27 +350,19 @@ Execution flow:
 1. Async geocode via Nominatim -> `(lat,lng)`
 2. `save_transit_score_to_db(lat,lng,radius)`
 3. `fetch_transit_stops(lat,lng,radius)`:
-- Cache lookup key: `transit:{lat:.4f}:{lng:.4f}:{radius}` in `transit_cache`
-- If miss: query Overpass mirrors in configured order
-- Parse stops and classify types
+- Cache lookup key: `transit:google:{lat:.4f}:{lng:.4f}:{radius}` in `transit_cache`
+- If miss: query Google Places Nearby Search for transit stop types
+- Parse and deduplicate stops by `place_id`
 
 Transit parsing details:
-- Rail when `tags.railway in {station, subway_entrance, halt}`
-- Otherwise counted as bus
+- Rail when type includes `train_station`, `subway_station`, or `transit_station`
+- Bus when type includes `bus_station`
 - Nearest stop computed by haversine distance in meters
 
-Transit score rubric:
-- Base score starts at 5
-- First matching tuple in rubric `(min_bus, min_rail, score)` applies:
-  - (20,2)->95
-  - (15,1)->85
-  - (10,1)->75
-  - (8,0)->65
-  - (5,0)->50
-  - (3,0)->35
-  - (1,0)->20
-  - (0,0)->5
-- If `rail_count > 0`, add +15, cap at 100
+Transit score model:
+- Weighted model with bus density (40%), rail density (40%), and nearest-stop proximity (20%)
+- Saturation points: bus `20`, rail `8`
+- Score clamped to `[5, 100]`
 
 Persistence:
 - Upsert to `transit_scores` on `(property_lat,property_lng)`
@@ -384,9 +392,8 @@ Execution flow:
 1. Sync Nominatim geocoding (`app/services/geocode.py`) -> `(lat,lon,city,state)`
 2. Cache lookup in `noise_scores` by exact `address`
 3. If miss:
-- Query Overpass for highways within 200m
-- Iterate way geometry points
-- Compute minimum haversine distance to any road point
+- Query Google Roads Nearest Roads API
+- Compute minimum haversine distance to snapped road points
 - Classify noise level
 
 Noise classification thresholds:
@@ -412,17 +419,34 @@ Execution flow:
 City normalization strategy:
 - Tries variants like `Saint`/`St.` and removal of `City of` prefix
 
+### 5.11 POST `/api/school_scores`
+Input model:
+- `PropertyCreateRequest` with `address: str`
+
+Execution flow:
+1. `fetch_school_scores(address)`
+2. Calls RPC `get_property_school_scores(search_address => normalized address)`
+3. If no results and ZIP is present in input, fallback query:
+- `school_master` where `zip_code = <zip>`, ordered by `housmart_school_score desc`
+
+Output fields:
+- `search_type` (`address` or `zip_code`)
+- `search_value`
+- `total_schools_found`
+- `schools[]` with `school_name`, `level`, `housmart_school_score`, `s_academic`, `s_resource`, `s_equity`
+- Optional `message` when no rows found
+
 ## 6. Error Handling and Failure Characteristics
 
 - Route-level handlers convert expected domain errors to HTTP status in crime/rent/flood/transit/noise/median modules.
 - Census routes do less exception wrapping and can return raw 500s for upstream failures.
 - Flood/transit include cache layers with TTL expiry checks.
-- Amenity depends on Overpass availability and DB SQL function `count_pois`.
+- Amenity uses Google Places fetch for cache population and includes a runtime fallback when `count_pois` RPC is ambiguous in PostgREST.
 
 ## 7. Cache Keys and Expiration
 
 - Flood cache key: `flood:{lat:.5f}:{lng:.5f}`
-- Transit cache key: `transit:{lat:.4f}:{lng:.4f}:{radius}`
+- Transit cache key: `transit:google:{lat:.4f}:{lng:.4f}:{radius}`
 - Rent cache key: SHA-256 of normalized request payload JSON
 - Noise cache: direct by exact address row match
 
@@ -449,25 +473,26 @@ Run before app start in a fresh environment:
 
 - Education/Income/Amenity geocoding: US Census Geocoder
 - Education/Income metrics: Census ACS
-- Amenity POIs: OSM Overpass
+- Amenity POIs: Google Places
 - Crime geocoding: Geocodio
 - Crime rates: FBI CDE
 - Flood geocoding: Nominatim
 - Flood zones: FEMA NFHL
 - Transit geocoding: Nominatim
-- Transit stops: OSM Overpass mirrors
+- Transit stops: Google Places
 - Rent: RentCast
-- Noise geocoding + roads: Nominatim + Overpass
+- Noise geocoding + roads: Nominatim + Google Roads
 - Median price geocoding: Nominatim
 
 ## 10. DB Touch Matrix by Endpoint
 
-- `/education_level`: `geo_tract_metrics` (upsert)
-- `/median_income`: `geo_tract_metrics` (upsert)
-- `/amenity_score`: `osm_poi_cache` (insert/read) + `count_pois` RPC
-- `/crime_score`: `leaic_crosswalk` (read)
-- `/flood_risk_score`: `flood_risk_cache` (read/upsert), `flood_zones` (upsert)
-- `/transit_score`: `transit_cache` (read/upsert), `transit_scores` (upsert)
-- `/rent_estimate`: `rent_estimate_cache` (read/upsert)
-- `/noise_estimate_score`: `noise_scores` (read/insert)
-- `/median_property_price`: `redfin_median_prices` (read; ingest flow writes)
+- `/education_level`: `geo_tract_metrics` (upsert), `api_call_logs` (insert via middleware)
+- `/median_income`: `geo_tract_metrics` (upsert), `api_call_logs` (insert via middleware)
+- `/amenity_score`: `osm_poi_cache` (insert/read), `count_pois` RPC or repository fallback query, `api_call_logs` (insert via middleware)
+- `/crime_score`: `leaic_crosswalk` (read), `api_call_logs` (insert via middleware)
+- `/flood_risk_score`: `flood_risk_cache` (read/upsert), `flood_zones` (upsert), `api_call_logs` (insert via middleware)
+- `/transit_score`: `transit_cache` (read/upsert), `transit_scores` (upsert), `api_call_logs` (insert via middleware)
+- `/rent_estimate`: `rent_estimate_cache` (read/upsert), `api_call_logs` (insert via middleware)
+- `/noise_estimate_score`: `noise_scores` (read/insert), `api_call_logs` (insert via middleware)
+- `/median_property_price`: `redfin_median_prices` (read; ingest flow writes), `api_call_logs` (insert via middleware)
+- `/school_scores`: `school_master` (read), `get_property_school_scores` RPC (read), `api_call_logs` (insert via middleware)

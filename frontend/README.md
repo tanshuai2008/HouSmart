@@ -44,7 +44,7 @@ The flow redirects sequentially:
 
 After setup, users access the Property Input dashboard to begin their property analysis.
 
-- **URL:** [http://localhost:3000/property-input](http://localhost:3000/property-input)
+- **URL:** []http://localhost:3000/property-input(http://localhost:3000/property-input)
 
 **Key Features:**
 - A central search component with recent search history functionality.

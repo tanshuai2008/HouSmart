@@ -64,7 +64,7 @@ export default function PrioritiesStep() {
 
     const handleNext = () => {
         if (isStepValid(4)) {
-            router.push("/dashboard");
+            router.push("/property-input");
         }
     };
 
@@ -123,7 +123,7 @@ export default function PrioritiesStep() {
 
                     <div className="flex items-center gap-6">
                         <button
-                            onClick={() => router.push("/dashboard")}
+                            onClick={() => router.push("/property-input")}
                             className="font-semibold text-[15px] leading-[22px] text-[#6B7280] hover:text-[#374151] transition-colors"
                         >
                             Skip now

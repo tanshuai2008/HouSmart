@@ -3,12 +3,16 @@ import React from "react";
 import Image from "next/image";
 import { Bell, ChevronDown, Search } from "lucide-react";
 
+import logoIcon from "@/assets/dashboard/icons/logo-icon.svg";
+import logoText from "@/assets/dashboard/icons/logo-text.svg";
+import userAvatarImg from "@/assets/dashboard/images/user-avatar.png";
+
 interface DashboardHeaderProps {
     searchValue?: string;
     onSearchChange?: (value: string) => void;
     userName?: string;
     userRole?: string;
-    userAvatar?: string;
+    userAvatar?: any;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -16,7 +20,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     onSearchChange,
     userName = "John Doe",
     userRole = "Pro Investor",
-    userAvatar = "/assets/dashboard/images/user-avatar.png",
+    userAvatar = userAvatarImg,
 }) => {
     return (
         <header className="sticky top-0 z-50 bg-white border-b border-[#E5E7EB] h-14">
@@ -24,13 +28,13 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                 {/* Logo */}
                 <div className="flex items-center gap-2 shrink-0">
                     <Image
-                        src="/assets/dashboard/icons/logo-icon.svg"
+                        src={logoIcon}
                         alt="HouSmart Logo"
                         width={32}
                         height={32}
                     />
                     <Image
-                        src="/assets/dashboard/icons/logo-text.svg"
+                        src={logoText}
                         alt="HouSmart"
                         width={80}
                         height={21}

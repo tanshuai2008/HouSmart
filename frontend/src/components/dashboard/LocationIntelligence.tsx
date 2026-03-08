@@ -107,7 +107,7 @@ export const LocationIntelligence: React.FC<LocationIntelligenceProps> = ({
                     <div key={score.label}>
                         <div className="flex items-center justify-between py-3">
                             <div className="flex items-center gap-2.5">
-                                <Image src={score.icon} alt={score.label} width={14} height={14} className="shrink-0 opacity-70" />
+                                <Image src={score.icon as any} alt={score.label} width={14} height={14} className="shrink-0 opacity-70" />
                                 <span className="text-[12px] font-medium text-[#374151]">{score.label}</span>
                             </div>
                             <ScoreBar score={score.score} />

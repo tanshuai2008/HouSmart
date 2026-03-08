@@ -2,9 +2,24 @@
 // This file mirrors the expected API response structure.
 // Replacing this data source with real API calls should require minimal refactoring.
 
+import { StaticImageData } from "next/image";
+
+import propertyHeroImg from "@/assets/dashboard/images/property-hero.png";
+
+import transitIcon from "@/assets/dashboard/icons/transit.svg";
+import buildingIcon from "@/assets/dashboard/icons/building.svg";
+import checkCircleIcon from "@/assets/dashboard/icons/check-circle.svg";
+import noiseIcon from "@/assets/dashboard/icons/noise.svg";
+import infrastructureIcon from "@/assets/dashboard/icons/infrastructure.svg";
+import trendDownIcon from "@/assets/dashboard/icons/trend-down.svg";
+import shieldIcon from "@/assets/dashboard/icons/shield.svg";
+import schoolIcon from "@/assets/dashboard/icons/school.svg";
+import parkIcon from "@/assets/dashboard/icons/park.svg";
+import busIcon from "@/assets/dashboard/icons/bus.svg";
+
 export interface UpsidesRiskItem {
     id: string;
-    icon: string; // path to asset icon
+    icon: StaticImageData | string; // path to asset icon
     title: string;
     description: string;
 }
@@ -32,7 +47,7 @@ export interface RevenueExpensesDataPoint {
 export interface LocationScore {
     label: string;
     score: number; // 0-5
-    icon: string; // path to asset icon
+    icon: StaticImageData | string; // path to asset icon
 }
 
 export interface ComparableListing {
@@ -57,7 +72,7 @@ export interface PropertyDetails {
     baths: number;
     sqft: string;
     yearBuilt: number;
-    heroImage: string;
+    heroImage: StaticImageData | string;
 }
 
 export interface PropertyInsight {
@@ -90,7 +105,7 @@ const mockDashboardData: DashboardData = {
         baths: 2.5,
         sqft: "2,180",
         yearBuilt: 1948,
-        heroImage: "/assets/dashboard/images/property-hero.png",
+        heroImage: propertyHeroImg,
     },
 
     insight: {
@@ -106,21 +121,21 @@ const mockDashboardData: DashboardData = {
         upsideDrivers: [
             {
                 id: "transit",
-                icon: "/assets/dashboard/icons/transit.svg",
+                icon: transitIcon,
                 title: "Transit Catalyst",
                 description:
                     "New light rail station opening 2027 (0.3mi). Expected to drive 10–15% premium.",
             },
             {
                 id: "zoning",
-                icon: "/assets/dashboard/icons/building.svg",
+                icon: buildingIcon,
                 title: "Zoning Bonus",
                 description:
                     "RSL zoning allows for immediate ADU addition (+800 sqft allowable).",
             },
             {
                 id: "turnkey",
-                icon: "/assets/dashboard/icons/check-circle.svg",
+                icon: checkCircleIcon,
                 title: "Turnkey Asset",
                 description:
                     "Recent renovation (2022) mitigates near-term CapEx risk.",
@@ -129,21 +144,21 @@ const mockDashboardData: DashboardData = {
         riskFactors: [
             {
                 id: "noise",
-                icon: "/assets/dashboard/icons/noise.svg",
+                icon: noiseIcon,
                 title: "Noise Pollution",
                 description:
                     "Located under secondary flight path. Outdoor noise peaks at 65dB.",
             },
             {
                 id: "infrastructure",
-                icon: "/assets/dashboard/icons/infrastructure.svg",
+                icon: infrastructureIcon,
                 title: "Infrastructure Age",
                 description:
                     "Original sewer line (1948). Recommend scope inspection ($10k risk).",
             },
             {
                 id: "market",
-                icon: "/assets/dashboard/icons/trend-down.svg",
+                icon: trendDownIcon,
                 title: "Market Softening",
                 description: "Inventory days-on-market up 15% month-over-month.",
             },
@@ -212,11 +227,11 @@ const mockDashboardData: DashboardData = {
     ],
 
     locationScores: [
-        { label: "Safety Score", score: 4, icon: "/assets/dashboard/icons/shield.svg" },
-        { label: "Schools", score: 4, icon: "/assets/dashboard/icons/school.svg" },
-        { label: "Lifestyle Amenities", score: 4, icon: "/assets/dashboard/icons/park.svg" },
-        { label: "Transit Access", score: 3, icon: "/assets/dashboard/icons/bus.svg" },
-        { label: "Noise Levels", score: 2, icon: "/assets/dashboard/icons/noise.svg" },
+        { label: "Safety Score", score: 4, icon: shieldIcon },
+        { label: "Schools", score: 4, icon: schoolIcon },
+        { label: "Lifestyle Amenities", score: 4, icon: parkIcon },
+        { label: "Transit Access", score: 3, icon: busIcon },
+        { label: "Noise Levels", score: 2, icon: noiseIcon },
     ],
 
     comparableListings: [
@@ -266,3 +281,4 @@ const mockDashboardData: DashboardData = {
 };
 
 export default mockDashboardData;
+

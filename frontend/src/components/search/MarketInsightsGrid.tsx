@@ -5,9 +5,9 @@ import { InvestmentHotspot, TrendingProperty, NewListing } from "@/types/search"
 import { InsightColumn } from "./InsightColumn";
 import { InsightListItem } from "./InsightListItem";
 
-import trendingUpIcon from "@/assets/icons/trending-up.svg";
-import thumbUpIcon from "@/assets/icons/thumb-up.svg";
-import clockIcon from "@/assets/icons/clock.svg";
+import trendingUpIcon from "@/assets/search/icons/trending-up.svg";
+import thumbUpIcon from "@/assets/search/icons/thumb-up.svg";
+import clockIcon from "@/assets/search/icons/clock.svg";
 
 export const MarketInsightsGrid = () => {
     const [hotspots, setHotspots] = useState<InvestmentHotspot[]>([]);

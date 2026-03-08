@@ -5,6 +5,8 @@ import { ArrowRight, Upload, Download, TrendingUp, AlertTriangle } from "lucide-
 import { Badge } from "@/components/ui/Badge";
 import { PropertyInsight } from "@/lib/mockData";
 
+import aiStarIcon from "@/assets/dashboard/icons/ai-star.svg";
+
 interface PropertyVerdictProps {
     insight: PropertyInsight & { undervaluedBy?: string };
 }
@@ -18,7 +20,7 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                     <Badge variant="strong-buy">{insight.verdict}</Badge>
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-[#027A48]">
                         <Image
-                            src="/assets/dashboard/icons/ai-star.svg"
+                            src={aiStarIcon}
                             alt="AI"
                             width={10}
                             height={10}
@@ -69,7 +71,7 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                         {insight.upsideDrivers.map((item) => (
                             <div key={item.id} className="flex gap-2.5 items-start">
                                 <div className="mt-0.5 w-[26px] h-[26px] flex items-center justify-center rounded-full bg-[#ECFDF3] shrink-0">
-                                    <Image src={item.icon} alt={item.title} width={13} height={13} />
+                                    <Image src={item.icon as any} alt={item.title} width={13} height={13} />
                                 </div>
                                 <div>
                                     <p className="text-[11px] font-semibold text-[#101828] leading-tight">{item.title}</p>
@@ -94,7 +96,7 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                         {insight.riskFactors.map((item, idx) => (
                             <div key={item.id} className="flex gap-2.5 items-start">
                                 <div className="mt-0.5 w-[26px] h-[26px] flex items-center justify-center rounded-full bg-[#FFF1F0] shrink-0">
-                                    <Image src={item.icon} alt={item.title} width={13} height={13} />
+                                    <Image src={item.icon as any} alt={item.title} width={13} height={13} />
                                 </div>
                                 <div>
                                     <p className="text-[11px] font-semibold text-[#101828] leading-tight">{item.title}</p>

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { imageMap } from "@/utils/imageMapper";
-import chevronRightIcon from "@/assets/icons/chevron-right.svg";
+import chevronRightIcon from "@/assets/search/icons/chevron-right.svg";
 
 interface InsightListItemProps {
     title: string;

@@ -2,8 +2,8 @@
 
 
 import Image from "next/image";
-import searchIcon from "@/assets/icons/search.svg";
-import locationIcon from "@/assets/icons/location-pin.svg";
+import searchIcon from "@/assets/search/icons/search.svg";
+import locationIcon from "@/assets/search/icons/location-pin.svg";
 
 export const PropertySearchHero = () => {
     return (

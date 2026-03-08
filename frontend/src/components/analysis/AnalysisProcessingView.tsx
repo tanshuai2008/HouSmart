@@ -5,11 +5,11 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 // Assumed asset paths
-import propertyImage from "@/assets/analysis/property-image.png";
-import clockIcon from "@/assets/analysis/clock.svg";
-import checkCircleIcon from "@/assets/analysis/check-circle.svg";
-import spinnerIcon from "@/assets/analysis/spinner.svg";
-import emptyCircleIcon from "@/assets/analysis/empty-circle.svg";
+import propertyImage from "@/assets/analyze/property-image.png";
+import clockIcon from "@/assets/analyze/clock.svg";
+import checkCircleIcon from "@/assets/analyze/check-circle.svg";
+import spinnerIcon from "@/assets/analyze/spinner.svg";
+import emptyCircleIcon from "@/assets/analyze/empty-circle.svg";
 
 const ANALYSIS_STEPS = [
     "Retrieving structured property data",

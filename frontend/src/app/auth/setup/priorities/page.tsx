@@ -64,13 +64,13 @@ export default function PrioritiesStep() {
 
     const handleNext = () => {
         if (isStepValid(4)) {
-            router.push("/auth/setup/market");
+            router.push("/dashboard");
         }
     };
 
     return (
         <>
-            <StepIndicator currentStep={4} title="MUST-HAVES" />
+            <StepIndicator currentStep={4} title="PRIORITIES" />
 
             <div className="p-8 flex flex-col items-center">
                 <div className="w-full mb-8">
@@ -121,18 +121,22 @@ export default function PrioritiesStep() {
                         BACK
                     </button>
 
-                    <Button
-                        variant="default"
-                        onClick={handleNext}
-                        disabled={!isStepValid(4)}
-                        className={`w-auto px-6 h-12 text-[15px] rounded-[12px] bg-[#111827] text-white hover:bg-[#1f2937] ${!isStepValid(4) ? "opacity-50 cursor-not-allowed" : ""}`}
-                    >
-                        Next Step
-                        <svg className="w-5 h-5 ml-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                            <path d="M12 5L19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    </Button>
+                    <div className="flex items-center gap-6">
+                        <button
+                            onClick={() => router.push("/dashboard")}
+                            className="font-semibold text-[15px] leading-[22px] text-[#6B7280] hover:text-[#374151] transition-colors"
+                        >
+                            Skip now
+                        </button>
+                        <Button
+                            variant="default"
+                            onClick={handleNext}
+                            disabled={!isStepValid(4)}
+                            className={`w-auto px-6 h-12 text-[15px] font-medium rounded-[12px] bg-[#111827] text-white hover:bg-[#1f2937] ${!isStepValid(4) ? "opacity-50 cursor-not-allowed" : ""}`}
+                        >
+                            Complete Setup
+                        </Button>
+                    </div>
                 </div>
             </div>
         </>

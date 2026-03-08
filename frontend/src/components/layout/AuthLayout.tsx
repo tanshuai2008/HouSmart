@@ -6,6 +6,7 @@ import housmartText from "@/assets/auth/login/housmart-text.svg";
 import checkIcon1 from "@/assets/auth/login/check-icon-1.svg";
 import checkIcon2 from "@/assets/auth/login/check-icon-2.svg";
 import checkIcon3 from "@/assets/auth/login/check-icon-3.svg";
+import userPlaceholder from "@/assets/auth/login/user-placeholder.svg";
 
 interface AuthLayoutProps {
     children: React.ReactNode;
@@ -67,9 +68,9 @@ export const AuthLayout = ({ children }: AuthLayoutProps) => {
                 {/* Investors Section */}
                 <div className="z-10 mt-16 lg:mt-auto pt-8 border-t border-[#1E293B] flex items-center gap-3">
                     <div className="flex -space-x-2">
-                        <div className="w-8 h-8 rounded-full border-2 border-[#101828] bg-gray-500" />
-                        <div className="w-8 h-8 rounded-full border-2 border-[#101828] bg-gray-400" />
-                        <div className="w-8 h-8 rounded-full border-2 border-[#101828] bg-gray-300" />
+                        <Image src={userPlaceholder} alt="Investor 1" width={32} height={32} className="w-8 h-8 rounded-full border-2 border-[#101828]" />
+                        <Image src={userPlaceholder} alt="Investor 2" width={32} height={32} className="w-8 h-8 rounded-full border-2 border-[#101828]" />
+                        <Image src={userPlaceholder} alt="Investor 3" width={32} height={32} className="w-8 h-8 rounded-full border-2 border-[#101828]" />
                     </div>
                     <span className="text-[14px] leading-[18px]">
                         <span className="font-semibold text-white">2,000+</span>{" "}

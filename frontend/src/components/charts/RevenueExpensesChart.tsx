@@ -27,12 +27,14 @@ const CustomTooltip = ({
 }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="bg-white border border-[#E5E7EB] rounded-lg p-2 shadow-lg text-xs">
-                <p className="font-semibold text-[#101828] mb-1">{label}</p>
+            <div className="bg-white border border-[#E5E7EB] rounded-lg px-3 py-2.5 shadow-md pr-6">
+                <p className="font-bold text-[#101828] text-[12px] mb-1.5">{label}</p>
                 {payload.map((entry) => (
-                    <p key={entry.name} className="text-[#3B82F6]">
-                        {entry.name}: ${(entry.value / 1000).toFixed(0)}k
-                    </p>
+                    <div key={entry.name} className="flex items-center gap-1.5 text-[12px]">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6]" />
+                        <span className="text-[#6B7280]">Median Price:</span>
+                        <span className="font-bold text-[#101828]">${entry.value.toLocaleString()}</span>
+                    </div>
                 ))}
             </div>
         );

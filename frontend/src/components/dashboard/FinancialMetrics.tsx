@@ -15,9 +15,17 @@ export const FinancialMetrics: React.FC<FinancialMetricsProps> = ({ metrics }) =
                         key={metric.label}
                         className="bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 flex flex-col gap-1"
                     >
-                        <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase">
-                            {metric.label}
-                        </span>
+                        <div className="relative group self-start flex flex-col justify-end">
+                            <span className="text-[10px] font-semibold text-[#9CA3AF] tracking-[0.08em] uppercase cursor-help">
+                                {metric.label}
+                            </span>
+                            {/* Tooltip */}
+                            {metric.tooltipText && (
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-max max-w-[240px] hidden group-hover:block bg-white text-[#101828] font-medium text-[12px] leading-snug p-3 rounded-lg border border-[#E5E7EB] shadow-[0px_4px_16px_rgba(0,0,0,0.08)] z-[60]">
+                                    {metric.tooltipText}
+                                </div>
+                            )}
+                        </div>
                         <span className="text-[22px] font-bold text-[#101828] leading-tight mt-0.5">
                             {metric.value}
                         </span>

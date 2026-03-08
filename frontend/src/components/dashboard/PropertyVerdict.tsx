@@ -24,18 +24,18 @@ export const PropertyVerdict: React.FC<PropertyVerdictProps> = ({ insight }) => 
                         AI CONFIDENCE: {insight.aiConfidence}%
                     </span>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-xs font-semibold px-4 py-2 rounded-full ring-2 ring-offset-2 ring-transparent ring-offset-white hover:ring-[#101828] transition mr-2">
+                <div className="flex items-center gap-1.5">
+                    <button className="flex items-center gap-1.5 bg-[#101828] text-white text-[12px] font-semibold px-4 py-2 rounded-full ring-2 ring-offset-2 ring-transparent ring-offset-white hover:ring-[#101828] hover:text-[#F8FAFC] transition mr-1">
                         View Listing
                         <ArrowRight size={13} />
                     </button>
-                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:bg-[#F0F9FF] hover:text-[#026AA2] text-[12px] font-medium px-3.5 py-2 rounded-full transition">
                         <Bookmark size={13} /> Save Property
                     </button>
-                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:bg-[#F8FAFC] hover:text-[#101828] text-[12px] font-medium px-3.5 py-2 rounded-full transition">
                         <Share2 size={13} /> Share
                     </button>
-                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#374151] text-xs font-medium px-2 py-1.5 rounded-lg transition">
+                    <button className="flex items-center gap-1.5 text-[#6B7280] hover:text-[#101828] border border-transparent hover:border-[#101828] text-[12px] font-medium px-3.5 py-2 rounded-full transition">
                         <Download size={13} /> Report
                     </button>
                 </div>

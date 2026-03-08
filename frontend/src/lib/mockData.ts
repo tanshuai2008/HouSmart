@@ -30,6 +30,7 @@ export interface FinancialMetric {
     subLabel: string;
     trend: "up" | "down" | "neutral";
     trendColor: "green" | "red" | "orange" | "neutral";
+    tooltipText?: string;
 }
 
 export interface PriceTrendDataPoint {
@@ -172,6 +173,7 @@ const mockDashboardData: DashboardData = {
             subLabel: "Estimated monthly rental income.",
             trend: "neutral",
             trendColor: "neutral",
+            tooltipText: "Estimated monthly rental income based on our rental data models.",
         },
         {
             label: "RENT-TO-PRICE",
@@ -179,6 +181,7 @@ const mockDashboardData: DashboardData = {
             subLabel: "Rental yield based on median house value.",
             trend: "neutral",
             trendColor: "neutral",
+            tooltipText: "Rental yield based on median house value.",
         },
         {
             label: "TENANT QUALITY INDEX",
@@ -186,6 +189,7 @@ const mockDashboardData: DashboardData = {
             subLabel: "Based on local education level vs national average.",
             trend: "neutral",
             trendColor: "neutral",
+            tooltipText: "Calculated from the percentage of residents with a Bachelor's degree or higher compared to the national average.",
         },
         {
             label: "AFFORDABILITY INDEX",
@@ -193,6 +197,7 @@ const mockDashboardData: DashboardData = {
             subLabel: "Highly affordable. Tenants can easily pay rent.",
             trend: "neutral",
             trendColor: "neutral",
+            tooltipText: "Based on estimated rent vs. 2024 Census median income.",
         },
     ],
 

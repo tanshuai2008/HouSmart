@@ -1,4 +1,6 @@
-import React from "react";
+"use client";
+import React, { useState } from "react";
+import Image from "next/image";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { PropertyVerdict } from "@/components/dashboard/PropertyVerdict";
 import { PropertyContext } from "@/components/dashboard/PropertyContext";
@@ -9,6 +11,10 @@ import { ComparableListings } from "@/components/dashboard/ComparableListings";
 
 import mockDashboardData from "@/lib/mockData";
 
+import aiCustomizationIcon from "@/assets/dashboard/chat/ai-customization.svg";
+import feedbackIcon from "@/assets/dashboard/chat/feedback.svg";
+import closeIcon from "@/assets/dashboard/chat/close.svg";
+
 /**
  * Dashboard Page – /dashboard
  *
@@ -18,6 +24,9 @@ import mockDashboardData from "@/lib/mockData";
  * match the expected API shape.
  */
 export default function DashboardPage() {
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState<'ai' | 'feedback'>('ai');
+
     const {
         property,
         insight,
@@ -78,12 +87,76 @@ export default function DashboardPage() {
                 </div>
             </main>
 
-            {/* Floating Chat Button */}
-            <button className="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-[#101828] flex items-center justify-center shadow-2xl hover:bg-[#1D2939] transition z-50">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-            </button>
+            {/* Floating Chat Button and Dialog */}
+            <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+                {isChatOpen && (
+                    <div className="w-[380px] bg-white rounded-xl shadow-[0px_8px_32px_rgba(0,0,0,0.12)] border border-[#E5E7EB] overflow-hidden flex flex-col origin-bottom-right animate-in fade-in zoom-in-95 duration-200">
+                        {/* Header Tabs */}
+                        <div className="flex items-center justify-between px-2 pt-2 border-b border-[#F3F4F6] relative">
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={() => setActiveTab('ai')}
+                                    className={`flex items-center gap-1.5 px-3 py-2.5 transition text-[13px] ${activeTab === 'ai' ? 'border-b-2 border-[#101828] font-bold text-[#101828]' : 'font-semibold text-[#9CA3AF] hover:text-[#6B7280]'}`}
+                                >
+                                    <Image src={aiCustomizationIcon} alt="AI" width={14} height={14} className={activeTab === 'ai' ? '' : 'opacity-60'} />
+                                    AI Customization
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('feedback')}
+                                    className={`flex items-center gap-1.5 px-3 py-2.5 transition text-[13px] mb-[2px] ${activeTab === 'feedback' ? 'border-b-2 border-[#101828] font-bold text-[#101828]' : 'font-semibold text-[#9CA3AF] hover:text-[#6B7280]'}`}
+                                >
+                                    <Image src={feedbackIcon} alt="Feedback" width={14} height={14} className={activeTab === 'feedback' ? 'brightness-0' : ''} />
+                                    Feedback
+                                </button>
+                            </div>
+                            <button onClick={() => setIsChatOpen(false)} className="p-1.5 hover:bg-[#F3F4F6] rounded-md transition absolute right-3 top-3">
+                                <Image src={closeIcon} alt="Close" width={10} height={10} />
+                            </button>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-5 flex flex-col gap-4">
+                            <p className="text-[13px] text-[#6B7280] leading-relaxed pr-2">
+                                {activeTab === 'ai'
+                                    ? "Tell the AI what you value most. We'll remember your preferences for future analyses."
+                                    : "Found a bug or have a suggestion? Let us know how we can improve Housmart."}
+                            </p>
+
+                            <textarea
+                                className="w-full h-[120px] resize-none bg-[#F9FAFB] border border-[#F3F4F6] rounded-xl p-3.5 text-[13px] text-[#101828] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-1 focus:ring-[#E5E7EB]"
+                                placeholder={activeTab === 'ai'
+                                    ? "E.g., 'I prefer walkable neighborhoods', 'Avoid heavy traffic...'"
+                                    : "Describe the issue or suggestion..."}
+                            />
+
+                            <div className="flex items-center justify-end gap-3 mt-1">
+                                <button onClick={() => setIsChatOpen(false)} className="text-[13px] font-semibold text-[#6B7280] hover:text-[#374151] px-2 py-2 transition">
+                                    Cancel
+                                </button>
+                                <button onClick={() => setIsChatOpen(false)} className="text-[13px] font-semibold bg-[#101828] text-white px-4 py-2 rounded-lg hover:bg-[#1D2939] transition">
+                                    {activeTab === 'ai' ? 'Save' : 'Send'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                <button
+                    onClick={() => setIsChatOpen(!isChatOpen)}
+                    className="w-[52px] h-[52px] rounded-full bg-[#101828] flex items-center justify-center shadow-2xl hover:bg-[#1D2939] transition"
+                >
+                    {isChatOpen ? (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    ) : (
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                    )}
+                </button>
+            </div>
         </div>
     );
 }

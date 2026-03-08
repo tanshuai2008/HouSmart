@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from app.api.routes import health
-from app.api.routes import school_scores
 from app.api.routes.school_scores import router as school_router
 
 

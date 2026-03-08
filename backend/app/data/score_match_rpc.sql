@@ -9,31 +9,21 @@ RETURNS TABLE (
     s_resource numeric,
     s_equity numeric
 )
-LANGUAGE plpgsql
+LANGUAGE sql
 AS $$
-BEGIN
-  RETURN QUERY
-  -- We use a CTE (a temporary result) to find the single closest matching property first
-  WITH closest_property AS (
-      SELECT p.id 
-      FROM properties p
-      -- It must be at least somewhat similar to avoid random matches
-      WHERE similarity(p.formatted_address, search_address) > 0.2 
-      -- Order by the most similar match at the very top
-      ORDER BY similarity(p.formatted_address, search_address) DESC
-      LIMIT 1
-  )
-  -- Now we join that single closest property to the school data
-  SELECT 
-    sm.school_name, 
-    sm.level, 
-    sm.housmart_school_score, 
-    sm.s_academic, 
-    sm.s_resource, 
+SELECT
+    sm.school_name,
+    sm.level,
+    sm.housmart_school_score,
+    sm.s_academic,
+    sm.s_resource,
     sm.s_equity
-  FROM closest_property cp
-  JOIN property_school_district psd ON cp.id = psd.property_id
-  JOIN school_master sm ON psd.district_id = sm.district_id
-  ORDER BY sm.housmart_school_score DESC NULLS LAST;
-END;
+FROM properties p
+JOIN property_school_district psd
+ON p.id = psd.property_id
+JOIN school_master sm
+ON psd.district_id = sm.district_id
+WHERE p.formatted_address % search_address
+ORDER BY similarity(p.formatted_address, search_address) DESC
+LIMIT 20;
 $$;

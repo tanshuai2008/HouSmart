@@ -44,7 +44,7 @@ The flow redirects sequentially:
 
 After setup, users access the Property Input dashboard to begin their property analysis.
 
-- **URL:** []http://localhost:3000/property-input(http://localhost:3000/property-input)
+- **URL:** [http://localhost:3000/property-input](http://localhost:3000/property-input)
 
 **Key Features:**
 - A central search component with recent search history functionality.
@@ -55,6 +55,33 @@ After setup, users access the Property Input dashboard to begin their property a
   3. `/api/new-listings`
 - The mock endpoints utilize native Next.js `NextResponse` to simulate an 800ms network delay before rendering the data on the frontend.
 
+### 4. Property Analysis Simulation (`/analyze`)
+
+After a user selects a property to investigate, they are taken to the analysis loading screen.
+
+- **URL:** [http://localhost:3000/analyze](http://localhost:3000/analyze)
+
+**Key Features:**
+- A simulated AI processing view (`AnalysisProcessingView`).
+- Displays a dynamic circular progress indicator.
+- Iterates through a series of analysis steps (e.g., "Analyzing neighborhood trends...", "Evaluating financial metrics...").
+- Automatically redirects the user to the `Dashboard` page upon completion of the mock analysis.
+
+### 5. Property Dashboard (`/dashboard`)
+
+The main interface for displaying comprehensive property insights and market trends.
+
+- **URL:** [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+
+**Key Features:**
+- **Dashboard Header:** Contains the search bar, notification bell, and an interactive profile dropdown menu matching the user's role setup.
+- **Property Context:** Displays a high-resolution hero image of the property alongside its core details (address, beds/baths/sqft, etc.) and a dynamic `Location Scores` grid with SVG icons.
+- **Property Verdict:** Provides a clear "Strong Buy/Buy/Hold/Sell" metric with an AI confidence score and lists expandable Upside Drivers and Risk Factors. Buttons feature immersive hover states.
+- **Financial Metrics:** Four main indicators (Monthly Rent, Rent-to-Price, Tenant Quality, Affordability) containing interactive tooltips on hover (using a native question mark cursor `?`).
+- **Market Trends:** Two interactive `recharts` graphs ("Sale-to-List Ratio" and "Median Sale Price") styled with custom SVG data dots and precisely calibrated interactive tooltips displaying absolute values.
+- **Comparable Sales:** A structured grid comparing listed rents, sale prices, and property specs.
+- **AI Chat Dialog:** A floating action button that toggles open an interactive chat dialog featuring "AI Customization" and "Feedback" functionality tabs.
+
 ---
 
 ## UI Documentation
@@ -62,7 +89,7 @@ After setup, users access the Property Input dashboard to begin their property a
 ### A. Reusable UI Components (`src/components/ui/`)
 - **`Input.tsx`:** Flexible input component wrapping SVG icons natively.
 - **`Button.tsx`:** Standardized buttons (`default`, `outline`) managing branding colors.
-- **`Icons.tsx`:** A centralized hub exporting SVG-to-React components.
+- **`Icons.tsx`:** A centralized hub exporting optimized generic `next/image` icons powered by local assets.
 
 ### B. Styling Engine
 The project utilizes the new Tailwind CSS v4 engine (`@tailwindcss/postcss`). Accordingly, the `globals.css` file uses the modern `@import "tailwindcss";` directive. All pages enforce strict mobile-first flexibility, snapping easily from mobile to large desktop resolutions.

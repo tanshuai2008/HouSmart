@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Model config
 # LLM 2: more powerful model for legal/policy reasoning
-POLICY_MODEL     = os.getenv("GEMINI_POLICY_MODEL", "gemini-2.0-flash")
+POLICY_MODEL     = os.getenv("GEMINI_POLICY_MODEL", "gemini-3-flash-preview")
 MAX_OUTPUT_TOKENS = int(os.getenv("GEMINI_POLICY_MAX_TOKENS", "2000"))
 TEMPERATURE       = float(os.getenv("GEMINI_POLICY_TEMPERATURE", "0.1"))  # very low = precise
 

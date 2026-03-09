@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 # Model config
 # LLM 1: cheaper + faster model for factual data interpretation
-RECOMMENDATION_MODEL = os.getenv("GEMINI_RECOMMENDATION_MODEL", "gemini-2.0-flash")
+RECOMMENDATION_MODEL = os.getenv("GEMINI_RECOMMENDATION_MODEL", "gemini-2.5-flash")
 MAX_OUTPUT_TOKENS    = int(os.getenv("GEMINI_MAX_TOKENS", "4096"))
 TEMPERATURE          = float(os.getenv("GEMINI_TEMPERATURE", "0.2"))  # low = consistent
 

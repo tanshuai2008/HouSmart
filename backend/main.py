@@ -11,6 +11,12 @@ from app.api.routes import health, property, education, income, evaluation
 =======
 from dotenv import load_dotenv
 from fastapi import FastAPI
+<<<<<<< HEAD
+=======
+from app.api.routes import health
+from app.api.routes.school_scores import router as school_router
+
+>>>>>>> origin/Ahmed_School_boundary_Rankings
 
 from app.api.routes import health
 from app.api.routes import crime_score
@@ -46,6 +52,7 @@ app.add_middleware(
 app.include_router(health.router)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 app.include_router(median_house_price.router)
 app.include_router(noise_estimator.router)
 app.include_router(road_map.router)
@@ -59,6 +66,9 @@ app.include_router(evaluation.router)
 =======
 app.include_router(crime_score.router)
 >>>>>>> origin/Jhanvi_CrimeScore
+=======
+app.include_router(school_router, prefix="/api")
+>>>>>>> origin/Ahmed_School_boundary_Rankings
 
 @app.get("/")
 def root():

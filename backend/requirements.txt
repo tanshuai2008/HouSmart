@@ -8,6 +8,7 @@ pyarrow==22.0.0
 
 requests==2.32.5
 geopy==2.4.1
+httpx==0.28.1
 
 pydantic-settings==2.13.1
 bs4==0.0.2

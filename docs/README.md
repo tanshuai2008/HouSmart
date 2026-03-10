@@ -4,42 +4,29 @@ This repository contains a FastAPI backend (under `backend/`) and a Next.js fron
 
 The `kpi-dashboard-integration` branch merges feature branches into a single backend so the dashboard can call real APIs.
 
-## Backend Endpoints
+## Backend Endpoints (current)
 
-- `GET /`
-  Root status message.
-- `GET /api/health`
-  Health check.
+- `GET /` and `GET /api/health`
 
 - `GET /api/median-house-price?city=<city>&state=<state>`
-  Latest city-level median sale price (Redfin).
 - `GET /api/noise-estimate/address?address=<full_address>`
-  Noise score/level by address.
 - `GET /api/noise-estimate/coordinates?lat=<lat>&lon=<lon>`
-  Noise score/level by coordinates.
 - `GET /api/road-map?place=<city_or_area>`
-  Road-network summary for a place.
 
 - `POST /api/median-income`
-  Median household income by address (US Census ACS).
 - `POST /api/education-level`
-  Education level (e.g. bachelor %) by address (US Census ACS).
+
+- `POST /api/crime-score/`
 
 - `POST /evaluation/amenity-score`
-  Amenity scores by latitude/longitude.
 - `GET /evaluation/{property_id}/location-intelligence`
-  Amenity scores for a stored property.
-
 - `POST /properties`
-  Create a property record from an address (used by evaluation flow).
 
-## Environment Variables
-
-File: `backend/.env`
-
-- `HOUSMART_REDFIN_DATA_URL` (if using parquet-based median price)
-- `HOUSMART_NOMINATIM_URL`, `HOUSMART_OVERPASS_URL`, and related timeouts/user-agents (noise/road-map)
-- `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (census/property/POI persistence)
+- Transit:
+  - `POST /transit/score/address`
+  - `GET /transit/score?lat=<lat>&lng=<lng>&radius_meters=800`
+  - `GET /transit/score/property/{property_id}`
+  - `POST /transit/import-stops`
 
 ## Run Backend
 
@@ -50,126 +37,50 @@ python -m venv venv
 pip install -r requirements.txt
 python -m uvicorn main:app --reload
 ```
-
-```
-backend/app/scripts/ingest_redfin.py
-```
-
----
-
-## Storage Layer
-
-Database: **Supabase**
-
-Table:
-
-```
-redfin_median_prices
-```
-
-Queried by:
-
-```
-backend/app/services/median_house_price.py
-```
-
----
-
-# Time Period of the Data
-
-The system always uses the **latest available `PERIOD_END`** from the Redfin dataset.
-
-During ingestion:
-
-- Only the **latest snapshot** is stored
-- The full historical time-series is **not kept**
-
----
-
-# Environment Variables
-
-File:
-
-```
-backend/.env
-```
-
-Required variables:
-
-```
-SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=
-HOUSMART_REDFIN_DATA_URL=
-```
-
-Loaded by:
-
-```
-backend/app/config/db.py
-```
-
----
-
-# Key Files
-
-```
-backend/main.py
-backend/app/api/routes/median_house_price.py
-backend/app/services/median_house_price.py
-backend/app/services/geocode.py
-backend/app/scripts/ingest_redfin.py
-```
-
----
-
-# Running the Backend
-
-```powershell
-cd backend
-
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-
-pip install -r requirements.txt
-
-python -m uvicorn main:app --reload
+.\venv\Scripts\activate
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
----
+Swagger docs:
 
-<<<<<<< HEAD
-- The merged backend is intended for dashboard integration; individual feature branches may also run standalone.
-- Noise and road-map APIs use OpenStreetMap data through Nominatim/Overpass.
-=======
-# Assumptions / Limitations
+- `http://127.0.0.1:8000/docs`
 
-- **US-only**
-  - Geocoding restricted to US addresses.
-  - Redfin dataset used here is US-focused.
+## API Endpoints
 
-- **City-level metric**
-  - Returns **city median sale price**, not neighborhood/ZIP/block or property-level estimate.
+### Health
 
-- **Canonical Redfin slice**
-  - Ingestion filters:
-    - `REGION_TYPE = place`
-    - `PROPERTY_TYPE = All Residential`
-    - latest `PERIOD_END`
+- `GET /api/health`
 
-- **Geocoder variability**
-  - Some addresses may fail to geocode depending on formatting or Nominatim rate limits.
+### Transit
 
-- **City matching risk**
-  - City/state lookups are case-insensitive and may return a nearby match if naming differs.
+- `POST /transit/import-stops`
+  - Body: `{ "lat": 47.6062, "lng": -122.3321, "radius_meters": 800 }`
+  - Imports transit stops into `transit_stops` (upsert on `osm_id`)
 
-- **Supabase credentials required**
-  - Must set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`.
+- `GET /transit/score?lat=47.6062&lng=-122.3321&radius_meters=800`
+  - Calculates transit score for lat/lng
+  - Saves into `transit_scores` (upsert on `property_lat,property_lng`)
 
----
+- `GET /transit/score/property/{property_id}?radius_meters=800`
+  - Reads property coordinates from `properties`
+  - Calculates and stores transit score for that property
 
-# Other Notes
+## Scoring Summary
 
-- On first run (or if the table is empty), the service **automatically triggers ingestion** to populate the Supabase table.
-- Internet access is required during ingestion.
-- CLI logging is suppressed to maintain the strict **two-line output format**.
->>>>>>> origin/Kevin_MedianHousePrice
+Transit score is based on counts of nearby bus + rail stops in radius (default 800m), with bonus for rail presence. Final score range is 0-100.
+
+## Required Supabase Tables
+
+- `properties` (`id`, `formatted_address`, `latitude`, `longitude`)
+- `transit_stops`
+- `transit_scores`
+- `transit_cache`
+
+## Notes
+
+- Overpass mirrors are tried in sequence for reliability.
+- If cache read/write fails, the service still continues with live API fetch.
+>>>>>>> origin/Imene_TransitScore

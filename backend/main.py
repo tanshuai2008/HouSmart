@@ -1,5 +1,6 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 from pathlib import Path
 =======
 # HouSmart/backend/main.py
@@ -61,3 +62,7 @@ app.include_router(crime_score.router)
 @app.get("/")
 def root():
     return {"message": "HouSmart Backend Running"}
+=======
+from app.main import app
+
+>>>>>>> origin/Imene_TransitScore

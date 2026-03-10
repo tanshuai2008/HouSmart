@@ -1,4 +1,10 @@
+<<<<<<< HEAD
 from pathlib import Path
+=======
+# HouSmart/backend/main.py
+from fastapi import FastAPI
+from app.api.routes import health, property, education, income, evaluation
+>>>>>>> origin/Census-Tract-Mapping
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -25,10 +31,17 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+<<<<<<< HEAD
 app.include_router(median_house_price.router)
 app.include_router(noise_estimator.router)
 app.include_router(road_map.router)
 
+=======
+app.include_router(property.router)
+app.include_router(education.router)
+app.include_router(income.router)
+app.include_router(evaluation.router)
+>>>>>>> origin/Census-Tract-Mapping
 
 @app.get("/")
 def root():

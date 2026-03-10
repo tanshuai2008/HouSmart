@@ -2,9 +2,13 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 from pathlib import Path
 =======
 # HouSmart/backend/main.py
+=======
+from dotenv import load_dotenv
+>>>>>>> origin/Jhanvi_RentEstimation
 from fastapi import FastAPI
 from app.api.routes import health, property, education, income, evaluation
 >>>>>>> origin/Census-Tract-Mapping
@@ -14,7 +18,14 @@ from fastapi import FastAPI
 <<<<<<< HEAD
 =======
 from app.api.routes import health
+<<<<<<< HEAD
 from app.api.routes.school_scores import router as school_router
+=======
+from app.api.routes import rent_estimate
+
+# Load environment variables from .env
+load_dotenv()
+>>>>>>> origin/Jhanvi_RentEstimation
 
 >>>>>>> origin/Ahmed_School_boundary_Rankings
 
@@ -53,6 +64,7 @@ app.include_router(health.router)
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 app.include_router(median_house_price.router)
 app.include_router(noise_estimator.router)
 app.include_router(road_map.router)
@@ -69,10 +81,14 @@ app.include_router(crime_score.router)
 =======
 app.include_router(school_router, prefix="/api")
 >>>>>>> origin/Ahmed_School_boundary_Rankings
+=======
+app.include_router(rent_estimate.router)
+>>>>>>> origin/Jhanvi_RentEstimation
 
 @app.get("/")
 def root():
     return {"message": "HouSmart Backend Running"}
+<<<<<<< HEAD
 =======
 from app.main import app
 
@@ -81,3 +97,5 @@ from app.main import app
 from app.main import app
 
 >>>>>>> origin/Imene_FloodRiskScore
+=======
+>>>>>>> origin/Jhanvi_RentEstimation

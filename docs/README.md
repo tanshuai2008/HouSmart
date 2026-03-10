@@ -18,6 +18,8 @@ The `kpi-dashboard-integration` branch merges feature branches into a single bac
 
 - `POST /api/crime-score/`
 
+- `POST /api/rent-estimate`
+
 - `POST /evaluation/amenity-score`
 - `GET /evaluation/{property_id}/location-intelligence`
 - `POST /properties`
@@ -40,7 +42,17 @@ The `kpi-dashboard-integration` branch merges feature branches into a single bac
 ```powershell
 cd backend
 python -m venv venv
-.\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m uvicorn main:app --reload
+## Manual Test (cURL)
+
+```bash
+curl -X POST "http://127.0.0.1:8000/api/rent-estimate" \
+  -H "Content-Type: application/json" \
+  -d "{\"address\":\"1300 N St Nw, Washington, DC 20005\",\"property_type\":\"single family\",\"bedrooms\":0,\"bathrooms\":1,\"square_footage\":655}"
 ```
+
+## Related Docs
+
+- `docs/rent_estimation_overview.md`
+- `docs/sql_query.md`
+
+>>>>>>> origin/Jhanvi_RentEstimation

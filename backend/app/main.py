@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from app.api.routes import health
 from app.api.evaluation import router as evaluation_router

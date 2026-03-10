@@ -152,26 +152,41 @@ def _build_final_response(
         "sources": {
             "recommendation_model": validated_output.get("_meta", {}).get("model"),
             "policy_model": (policy_summary or {}).get("_meta", {}).get("model"),
-            "policy_state": (policy_summary or {}).get("state"),
+            "policy_state": (policy_summary or {}).get("_meta", {}).get("state"),
         },
     }
 
     return response
 
-
 def _extract_policy_highlights(policy_summary: Optional[dict]) -> Optional[dict]:
     """Return a clean policy highlights dict for the dashboard, or None."""
     if not policy_summary or not policy_summary.get("policy_summary"):
         return None
-    return {
-        "state":           policy_summary.get("state"),
-        "summary":         policy_summary.get("policy_summary"),
-        "threats":         policy_summary.get("threats", []),
-        "opportunities":   policy_summary.get("opportunities", []),
-        "key_obligations": policy_summary.get("key_obligations", []),
-        "str_restrictions": policy_summary.get("str_restrictions"),
-    }
 
+    raw = policy_summary.get("policy_summary", "")
+
+    parsed = {}
+    if isinstance(raw, str):
+        clean = raw.strip()
+        if clean.startswith("{"):
+            try:
+                import json
+                parsed = json.loads(clean)
+            except Exception:
+                parsed = {"summary": clean}
+        else:
+            parsed = {"summary": clean}
+    elif isinstance(raw, dict):
+        parsed = raw
+
+    return {
+        "state":            parsed.get("state") or policy_summary.get("_meta", {}).get("state"),
+        "summary":          parsed.get("summary") or raw,
+        "threats":          parsed.get("threats", []),
+        "opportunities":    parsed.get("opportunities", []),
+        "key_obligations":  parsed.get("key_obligations", []),
+        "str_restrictions": parsed.get("str_restrictions"),
+    }
 
 def _error_response(evaluation_id: str, reason: str) -> dict:
     """Return a structured error response that the dashboard can handle gracefully."""

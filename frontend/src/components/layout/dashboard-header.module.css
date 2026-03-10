@@ -1,0 +1,228 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 3.5rem;
+  background: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.container {
+  max-width: 1340px;
+  margin: 0 auto;
+  height: 100%;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.logoText {
+  display: none;
+}
+
+.searchWrap {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  flex: 1;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9ca3af;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.5rem 1rem 0.5rem 2.25rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  background: #f9fafb;
+  color: #101828;
+  font-size: 0.875rem;
+}
+
+.searchInput::placeholder {
+  color: #9ca3af;
+}
+
+.searchInput:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(16, 24, 40, 0.2);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.iconButton {
+  position: relative;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  transition: background 150ms ease;
+}
+
+.iconButton:hover {
+  background: #f3f4f6;
+}
+
+.bellIcon {
+  color: #6b7280;
+}
+
+.notificationDot {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: #ef4444;
+  border: 2px solid #ffffff;
+}
+
+.separator {
+  width: 1px;
+  height: 1.5rem;
+  background: #e5e7eb;
+}
+
+.profileWrap {
+  position: relative;
+}
+
+.profileButton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  transition: background 150ms ease;
+}
+
+.profileButton:hover {
+  background: #f3f4f6;
+}
+
+.avatar {
+  border-radius: 9999px;
+  object-fit: cover;
+}
+
+.profileMeta {
+  display: none;
+  flex-direction: column;
+  text-align: left;
+}
+
+.profileName {
+  font-size: 0.8125rem;
+  line-height: 1.1;
+  font-weight: 600;
+  color: #101828;
+}
+
+.profileRole {
+  font-size: 0.6875rem;
+  line-height: 1.1;
+  color: #6b7280;
+}
+
+.chevron {
+  display: none;
+  color: #6b7280;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  margin-top: 0.5rem;
+  width: 14rem;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+  z-index: 50;
+}
+
+.menuHeader {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.menuHeaderName {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #101828;
+  line-height: 1.2;
+}
+
+.menuHeaderRole {
+  font-size: 0.875rem;
+  color: #6b7280;
+  line-height: 1;
+}
+
+.menuGroup {
+  padding: 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuGroupBorder {
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.menuItem {
+  width: 100%;
+  text-align: left;
+  padding: 0.625rem 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #344054;
+  transition: background 150ms ease, color 150ms ease;
+}
+
+.menuItem:hover {
+  background: #f9fafb;
+  color: #101828;
+}
+
+@media (min-width: 640px) {
+  .logoText {
+    display: block;
+  }
+}
+
+@media (min-width: 768px) {
+  .profileMeta {
+    display: flex;
+  }
+
+  .chevron {
+    display: block;
+  }
+}

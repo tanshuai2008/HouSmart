@@ -2,9 +2,11 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.middleware.api_call_logger import api_call_logger_middleware
 from app.api.routes import (
     amenity_score,
+    onboarding,
     crime_score,
     education,
     flood,
@@ -22,9 +24,20 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(title="HouSmart API")
 app.middleware("http")(api_call_logger_middleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(health.router)
 app.include_router(auth.router)
+app.include_router(onboarding.router)
 app.include_router(education.router)
 app.include_router(income.router)
 app.include_router(amenity_score.router)

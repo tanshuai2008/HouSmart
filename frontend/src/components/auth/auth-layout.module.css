@@ -1,0 +1,165 @@
+.authShell {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+}
+
+.leftPanel {
+  position: relative;
+  width: 100%;
+  background: #101828;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 3rem 2rem;
+}
+
+.panelAura {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  left: 18.5rem;
+  top: -5rem;
+  background: rgba(30, 41, 57, 0.2);
+  filter: blur(64px);
+  border-radius: 9999px;
+  pointer-events: none;
+}
+
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+  margin-bottom: 3rem;
+}
+
+.heroSection {
+  z-index: 1;
+  margin-top: 1rem;
+  max-width: 28.75rem;
+}
+
+.heroTitle {
+  margin-bottom: 1.5rem;
+  font-size: 2.25rem;
+  line-height: 2.75rem;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  color: #f9fafb;
+}
+
+.heroDescription {
+  margin-bottom: 3rem;
+  max-width: 27.625rem;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  color: #a1a1aa;
+}
+
+.featureList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.featureText {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 500;
+  color: #d4d4d8;
+}
+
+.investorsRow {
+  z-index: 1;
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.avatarGroup {
+  display: flex;
+  margin-left: 0;
+}
+
+.avatar {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  border: 2px solid #101828;
+}
+
+.avatar + .avatar {
+  margin-left: -0.5rem;
+}
+
+.investorText {
+  font-size: 0.875rem;
+  line-height: 1.125rem;
+}
+
+.investorCount {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.investorLabel {
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+.rightPanel {
+  position: relative;
+  width: 100%;
+  min-height: 31.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.formSlot {
+  width: 100%;
+  max-width: 25rem;
+}
+
+@media (min-width: 1024px) {
+  .authShell {
+    flex-direction: row;
+  }
+
+  .leftPanel {
+    width: 50%;
+    min-height: 100vh;
+    padding: 3.5rem 4rem;
+    flex-shrink: 0;
+  }
+
+  .brandRow {
+    margin-bottom: 11.25rem;
+  }
+
+  .heroSection {
+    margin-top: 0;
+  }
+
+  .investorsRow {
+    margin-top: auto;
+  }
+
+  .rightPanel {
+    width: 50%;
+    min-height: 100vh;
+  }
+}

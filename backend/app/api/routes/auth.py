@@ -15,6 +15,12 @@ from app.api.schemas.auth import RegisterRequest, LoginRequest
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
+def _sanitize_user(user: dict) -> dict:
+    sanitized = dict(user)
+    sanitized.pop("password", None)
+    return sanitized
+
+
 @router.post("/register")
 def register_user(payload: RegisterRequest):
 
@@ -40,9 +46,11 @@ def register_user(payload: RegisterRequest):
 
         return {
             "message": "User registered successfully",
-            "user": user,
+            "user": _sanitize_user(user),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -75,11 +83,13 @@ def login_user(payload: LoginRequest):
 
         return {
             "message": "Login successful",
-            "user": user,
+            "user": _sanitize_user(user),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/google")
@@ -116,11 +126,13 @@ def google_login(authorization: Optional[str] = Header(None)):
 
         return {
             "message": "Google login successful",
-            "user": user,
+            "user": _sanitize_user(user),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/verify")
@@ -143,8 +155,15 @@ def verify_user(authorization: Optional[str] = Header(None)):
 
         return {
             "valid": True,
-            "user": user,
+            "user": _sanitize_user(user) if user else None,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=401, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/logout")
+def logout_user():
+    return {"message": "Logout successful"}

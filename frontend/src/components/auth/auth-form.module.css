@@ -1,0 +1,232 @@
+.formRoot {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  padding-top: 2.5rem;
+}
+
+.formRootSignup {
+  padding-top: 3rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.title {
+  text-align: center;
+  color: #10151c;
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 700;
+}
+
+.titleSignup {
+  color: #101828;
+  font-size: 1.5rem;
+  line-height: 2rem;
+  font-weight: 600;
+}
+
+.subtitle {
+  text-align: center;
+  color: #71717a;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.subtitleSignup {
+  color: #6a7282;
+}
+
+.stack {
+  width: 100%;
+  margin-top: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.socialStack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.socialButton {
+  width: 100%;
+  height: 2.875rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e4e4e7;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.75rem;
+  color: #3f3f46;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  gap: 1.25rem;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.fieldHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 0.25rem;
+}
+
+.label {
+  margin-left: 0.25rem;
+  color: #71717a;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.forgotLink {
+  color: #71717a;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  transition: color 150ms ease;
+}
+
+.forgotLink:hover {
+  color: #10151c;
+}
+
+.input {
+  height: 2.875rem;
+  border-color: #e4e4e7;
+  border-radius: 0.75rem;
+}
+
+.icon {
+  opacity: 0.6;
+}
+
+.passwordHint {
+  margin-top: 0.25rem;
+  margin-left: 0.25rem;
+  color: #a1a1aa;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+}
+
+.errorText {
+  margin-top: 0.25rem;
+  margin-left: 0.25rem;
+  color: #ef4444;
+  font-size: 0.6875rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+
+.submitButton {
+  width: 100%;
+  height: 2.875rem;
+  border-radius: 0.75rem;
+  background: #10151c;
+  color: #ffffff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  margin-top: 0.25rem;
+}
+
+.submitButton:hover {
+  background: #18212e;
+}
+
+.submitLogin {
+  margin-bottom: 1.5rem;
+}
+
+.submitSignup {
+  margin-bottom: 2rem;
+}
+
+.switchAuthRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #71717a;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+}
+
+.switchAuthRowSignup {
+  color: #6a7282;
+  font-size: 0.6875rem;
+}
+
+.switchAuthLink {
+  margin-left: 0.25rem;
+  color: #10151c;
+  font-weight: 700;
+}
+
+.switchAuthLinkSignup {
+  color: #101828;
+  font-weight: 600;
+}
+
+.switchAuthLink:hover,
+.switchAuthLinkSignup:hover {
+  text-decoration: underline;
+}
+
+.footerLinks {
+  margin-top: 2rem;
+  padding-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.footerLinksSignup {
+  margin-top: 1.5rem;
+}
+
+.footerText,
+.footerLink {
+  color: #a1a1aa;
+  font-size: 0.5625rem;
+  line-height: 1rem;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+.footerLink {
+  text-transform: uppercase;
+  transition: color 150ms ease;
+}
+
+.footerLink:hover {
+  color: #71717a;
+}
+
+@media (min-width: 1024px) {
+  .formRoot {
+    padding-top: 3rem;
+  }
+}

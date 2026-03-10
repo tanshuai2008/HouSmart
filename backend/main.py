@@ -1,6 +1,7 @@
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 from pathlib import Path
 =======
 # HouSmart/backend/main.py
@@ -66,3 +67,7 @@ def root():
 from app.main import app
 
 >>>>>>> origin/Imene_TransitScore
+=======
+from app.main import app
+
+>>>>>>> origin/Imene_FloodRiskScore

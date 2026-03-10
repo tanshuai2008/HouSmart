@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     FBI_API_KEY: str = ""
     FBI_API_BASE_URL: str = "https://api.usa.gov/crime/fbi/cde"
 
-    # Flood service (kept for future merges)
+    # Flood service
     FLOOD_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 180
     FEMA_QUERY_URL: str = "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer/28/query"
     FEMA_HTTP_TIMEOUT_SECONDS: int = 15

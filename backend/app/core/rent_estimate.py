@@ -43,6 +43,8 @@ def fetch_rent_estimate(
         supabase_client=supabase,
     )
     if cached_result:
+        cached_result["api_used"] = "cache"
+        cached_result["source"] = "rent_estimate_cache"
         return cached_result
 
     payload = call_rentcast_api(
@@ -60,6 +62,8 @@ def fetch_rent_estimate(
         "subject_property": payload.get("subjectProperty", {}) or {},
         "comparables": payload.get("comparables", []) or [],
     }
+    result["api_used"] = "rentcast_api"
+    result["source"] = "RentCast API"
     persist_cache_entry(
         cache_key=cache_key,
         cache_request_payload=cache_request_payload,

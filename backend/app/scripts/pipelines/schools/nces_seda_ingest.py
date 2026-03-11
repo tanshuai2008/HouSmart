@@ -198,27 +198,17 @@ print(f"   Schools with academic score : {seda_clean['academic_score'].notna().s
 print(f"   Schools with growth score   : {seda_clean['growth_score'].notna().sum():,}")
 
 # ================================================================
-# STEP 7: Filter to our target districts from Supabase
+# STEP 7: Use full directory (no filtering)
 # ================================================================
-print("\n── Step 7: Fetching target districts from Supabase ──")
-resp    = supabase.table("property_school_district").select("district_id").execute()
-our_ids = {str(r["district_id"]).zfill(7) for r in resp.data if r.get("district_id")}
-print(f"   Target district IDs : {our_ids}")
-
-dir_filtered = dir_df[dir_df["LEAID"].isin(our_ids)].copy()
-print(f"   Schools in our districts: {len(dir_filtered):,}")
-
-if dir_filtered.empty:
-    print("\n⚠️  No schools matched our districts.")
-    print(f"   Sample CCD LEAIDs : {dir_df['LEAID'].head(5).tolist()}")
-    print(f"   Our district IDs  : {list(our_ids)[:5]}")
+print("\n── Step 7: Using full directory ──")
+before = len(dir_df)
 
 # ================================================================
 # STEP 8: LEFT JOIN sequence — no school ever dropped
 # Directory → Membership → Staff → Lunch → Characteristics → SEDA
 # ================================================================
 print("\n── Step 8: Joining all sources ──")
-master = dir_filtered.copy()
+master = dir_df.copy()
 before = len(master)
 
 master = master.merge(enroll,     on="NCESSCH", how="left")
@@ -289,8 +279,85 @@ print(f"   STR computed for            : {master['student_teacher_ratio'].notna(
 print(f"   Academic percentile for     : {master['academic_percentile'].notna().sum()} schools")
 
 # ================================================================
-# STEP 10: Build final schema
+# STEP 10: State-Relative Normalization & Weighting
 # ================================================================
+print("\n── Step 10: State-Relative Normalization & Weighting ──")
+
+# 1. State-wide stats for academic normalization (ST is the state code)
+state_stats = master.groupby("ST")["academic_score"].agg(["min", "max"]).reset_index()
+state_stats.columns = ["ST", "state_min", "state_max"]
+master = master.merge(state_stats, on="ST", how="left")
+
+# Normalized Academic Score (0-100)
+master["s_academic"] = np.where(
+    (master["academic_score"].notna()) & (master["state_max"] != master["state_min"]),
+    ((master["academic_score"] - master["state_min"]) / (master["state_max"] - master["state_min"])) * 100,
+    None
+)
+master["s_academic"] = master["s_academic"].apply(lambda x: max(0, min(100, x)) if pd.notna(x) else None)
+
+# 2. Resource Score (Student-Teacher Ratio logic)
+def calculate_resource_score(r):
+    if pd.isna(r) or (isinstance(r, float) and np.isnan(r)): return None
+    if r < 12: return 100
+    elif r <= 25: return 100 - (r - 12) * 4.6
+    else: return 40
+master["s_resource"] = master["student_teacher_ratio"].apply(calculate_resource_score)
+
+# 3. Equity Score (Inverse of FRPL)
+master["s_equity"] = np.where(master["frpl_rate"].notna(), (1 - master["frpl_rate"] / 100) * 100, None)
+
+# 4. Final Weighted Score with Strict Academic-First Logic
+def calculate_housmart_score(row):
+    # Mandatory Academic Score
+    if pd.isna(row["s_academic"]):
+        return None, "none"
+
+    has_res = pd.notna(row["s_resource"])
+    has_equ = pd.notna(row["s_equity"])
+
+    # Case 1: All 3 components present (60/20/20)
+    if has_res and has_equ:
+        score = (row["s_academic"] * 0.6) + (row["s_resource"] * 0.2) + (row["s_equity"] * 0.2)
+        confidence = "high"
+    
+    # Case 2: Academic + One other (75/25 redistribution)
+    elif has_res or has_equ:
+        other_val = row["s_resource"] if has_res else row["s_equity"]
+        # (0.6 / 0.8) = 0.75 | (0.2 / 0.8) = 0.25
+        score = (row["s_academic"] * 0.75) + (other_val * 0.25)
+        confidence = "medium"
+    
+    # Case 3: ONLY Academic (100%)
+    else:
+        score = row["s_academic"]
+        confidence = "low"
+    
+    return round(score, 1), confidence
+
+# Apply the scoring function
+scored_data = master.apply(calculate_housmart_score, axis=1)
+master["housmart_school_score"] = scored_data.apply(lambda x: x[0])
+master["score_confidence"] = scored_data.apply(lambda x: x[1])
+
+# Confidence Level cleanup
+master["score_confidence"] = master["score_confidence"].fillna("none")
+
+# Tracks which fields were used/missing for weight redistribution
+def get_fields_str(row, target_val):
+    comp_cols = ["s_academic", "s_resource", "s_equity"]
+    fields = [col.replace("s_", "") for col in comp_cols if (pd.notna(row[col])) == target_val]
+    return ", ".join(fields)
+
+master["score_fields_used"] = master.apply(lambda r: get_fields_str(r, True), axis=1)
+master["score_fields_missing"] = master.apply(lambda r: get_fields_str(r, False), axis=1)
+
+print(f"   Schools scored (Academic-First) : {master['housmart_school_score'].notna().sum():,}")
+
+# ================================================================
+# STEP 11: Build final schema
+# ================================================================
+print("\n── Step 11: Build final schema ──")
 school_master = pd.DataFrame({
     "ncessch":               master["NCESSCH"],
     "school_name":           master["SCH_NAME"],
@@ -314,39 +381,46 @@ school_master = pd.DataFrame({
     "growth_score":          master["growth_score"],
     "math_score":            master["math_score"],
     "academic_percentile":   master["academic_percentile"],
-    "growth_percentile": master["growth_percentile"],
-    "math_percentile":   master["math_percentile"],
+    "growth_percentile":     master["growth_percentile"],
+    "math_percentile":       master["math_percentile"],
+    "s_academic":            master["s_academic"],
+    "s_resource":            master["s_resource"],
+    "s_equity":              master["s_equity"],
+    "housmart_school_score": master["housmart_school_score"],
+    "score_confidence":      master["score_confidence"],
+    "score_fields_used":     master["score_fields_used"],
+    "score_fields_missing":  master["score_fields_missing"],
 })
 
 # ================================================================
-# STEP 11: Coverage report + sample
+# STEP 12: Coverage report + sample
 # ================================================================
 print(f"\n── Coverage Report ──")
 print(f"   Total schools: {len(school_master)}")
 for col in [
     "school_name", "total_enrollment", "student_teacher_ratio",
-    "frpl_rate", "nslp_status", "is_virtual",
-    "academic_score", "growth_score", "academic_percentile"
+    "frpl_rate", "nslp_status", "academic_score", "housmart_school_score"
 ]:
     filled = school_master[col].notna().sum()
     print(f"   {col:25s}: {filled}/{len(school_master)}")
 
 print(f"\n── Sample Output ──")
 print(school_master[[
-    "ncessch", "school_name", "level", "frpl_rate",
-    "academic_score", "growth_score", "student_teacher_ratio"
-]].head(5).to_string())
+    "ncessch", "school_name", "level", "housmart_school_score",
+    "score_fields_used", "score_fields_missing"
+]].head(10).to_string())
 
 # ================================================================
-# STEP 12: Save CSV
+# STEP 13: Save CSV
 # ================================================================
+print("\n── Step 13: Saving output ──")
 school_master.to_csv(OUTPUT_FILE, index=False)
 print(f"\n CSV saved → {OUTPUT_FILE}")
 
 # ================================================================
-# STEP 13: Upsert to Supabase in chunks of 500
+# STEP 14: Upsert to Supabase in chunks of 500
 # ================================================================
-print("\nUpserting to Supabase school_master...")
+print("\n── Step 14: Upserting to Supabase school_master ──")
 records = school_master.where(pd.notnull(school_master), None).to_dict("records")
 
 for r in records:

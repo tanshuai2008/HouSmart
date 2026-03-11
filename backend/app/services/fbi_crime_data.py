@@ -48,7 +48,7 @@ class FbiCrimeDataClient:
             "to": to_month,
             "API_KEY": self._api_key,
         }
-        logger.info(
+        logger.debug(
             "Fetching FBI summarized data ori=%s offense=%s from=%s to=%s",
             ori,
             offense_code,
@@ -57,8 +57,6 @@ class FbiCrimeDataClient:
         )
         try:
             response = self._http.get(endpoint, params=params, timeout=self._timeout)
-            logger.info("FBI request URL: %s", response.url)
-            logger.info("FBI response JSON: %s", response.json())  # Debug: print the full URL being requested
             response.raise_for_status()
         except requests.RequestException as exc:
             raise CrimeSafetyServiceError(f"FBI summarized request failed: {exc}") from exc

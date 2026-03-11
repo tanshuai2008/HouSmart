@@ -75,30 +75,125 @@ def _fetch_crosswalk(
         value,
         agency_type,
     )
-    try:
-        response = (
-            client
-            .table(CROSSWALK_TABLE_NAME)
-            .select("ori, agency_name, agency_type")
-            .eq(column, value)
-            .eq("agency_type", agency_type)
-            .limit(1)
-            .execute()
-        )
-    except SupabaseConfigError as exc:
-        raise CrimeCrosswalkError(str(exc)) from exc
-    except Exception as exc:
-        raise CrimeCrosswalkError(f"Supabase crosswalk lookup failed: {exc}") from exc
-
-    rows = response.data or []
+    column_variants = _column_variants(column)
+    rows = []
+    last_exc: Optional[Exception] = None
+    any_query_succeeded = False
+    for column_name in column_variants:
+        try:
+            response = (
+                client
+                .table(CROSSWALK_TABLE_NAME)
+                .select("*")
+                .eq(column_name, value)
+                .limit(50)
+                .execute()
+            )
+            any_query_succeeded = True
+            rows = response.data or []
+            if rows:
+                logger.debug(
+                    "Crosswalk matched using column variant %s=%s",
+                    column_name,
+                    value,
+                )
+                break
+        except SupabaseConfigError as exc:
+            raise CrimeCrosswalkError(str(exc)) from exc
+        except Exception as exc:
+            last_exc = exc
+            msg = str(exc).lower()
+            if "column" in msg:
+                logger.warning(
+                    "Crosswalk query failed for column variant %s=%s; trying next variant: %s",
+                    column_name,
+                    value,
+                    exc,
+                )
+                continue
+            raise CrimeCrosswalkError(f"Supabase crosswalk lookup failed: {exc}") from exc
+    # Raise schema error only when every attempted variant failed due missing column.
+    # If any variant query executed successfully (even with zero rows), return None
+    # so caller can try county-level fallback.
+    if not rows and not any_query_succeeded and last_exc and "column" in str(last_exc).lower():
+        raise CrimeCrosswalkError(
+            f"Supabase crosswalk lookup failed: no matching FIPS column found for {column}"
+        ) from last_exc
     if not rows:
         return None
-    row = rows[0]
+
+    def _normalize_agency_type(row: dict) -> str:
+        raw = (
+            row.get("agency_type")
+            or row.get("subtype1")
+            or row.get("SUBTYPE1")
+            or row.get("type")
+            or ""
+        )
+        text = str(raw).strip().lower()
+        if text in {"0", "city"}:
+            return "city"
+        if text in {"1", "county"}:
+            return "county"
+        return text
+
+    selected_row = None
+    for row in rows:
+        if _normalize_agency_type(row) == agency_type:
+            selected_row = row
+            break
+    if selected_row is None:
+        selected_row = rows[0]
+
+    resolved_type = _normalize_agency_type(selected_row) or agency_type
+    resolved_ori = str(
+        selected_row.get("ori")
+        or selected_row.get("ori9")
+        or selected_row.get("ori7")
+        or selected_row.get("ORI")
+        or selected_row.get("ORI9")
+        or selected_row.get("ORI7")
+        or ""
+    ).strip()
+    resolved_name = str(
+        selected_row.get("agency_name")
+        or selected_row.get("name")
+        or selected_row.get("NAME")
+        or selected_row.get("agency")
+        or ""
+    ).strip()
+
+    if not resolved_ori:
+        logger.warning("Crosswalk row found but ORI is empty for %s=%s", column, value)
+        return None
+
     return CrosswalkRecord(
-        ori=str(row.get("ori", "")).strip(),
-        agency_name=str(row.get("agency_name", "")).strip(),
-        agency_type=str(row.get("agency_type", agency_type)).strip() or agency_type,
+        ori=resolved_ori,
+        agency_name=resolved_name,
+        agency_type=resolved_type,
     )
+
+
+def _column_variants(column: str) -> tuple[str, ...]:
+    if column == "county_fips":
+        return (
+            "county_fips",
+            "countyfips",
+            "fips",
+            "fips_county",
+            "county",
+            "FIPS",
+            "FIPS_COUNTY",
+        )
+    if column == "place_fips":
+        return (
+            "place_fips",
+            "placefips",
+            "fplace",
+            "place",
+            "FPLACE",
+        )
+    return (column,)
 
 
 __all__ = [

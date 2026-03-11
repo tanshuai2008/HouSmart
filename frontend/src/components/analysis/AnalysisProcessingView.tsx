@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getAnalysisRunStatus } from "@/lib/api/analysis";
+import { useAuth } from "@/providers/auth-context";
 
 // Assumed asset paths
 import clockIcon from "@/assets/analyze/clock.svg";
@@ -34,10 +36,19 @@ const PROCESSING_MESSAGES = [
 
 export default function AnalysisProcessingView() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+    const { user } = useAuth();
+    const runId = searchParams.get("run_id");
+    const propertyId = searchParams.get("property_id");
+    const address = searchParams.get("address") ?? "1248 Highland Avenue, Seattle WA";
     const [progress, setProgress] = useState(0);
     const [processingMessageIdx, setProcessingMessageIdx] = useState(0);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
+        if (runId) {
+            return;
+        }
         // Total duration: let's say 8 seconds to 100%
         // 8000ms / 100 = 80ms per 1%
         const interval = setInterval(() => {
@@ -51,15 +62,58 @@ export default function AnalysisProcessingView() {
         }, 80);
 
         return () => clearInterval(interval);
-    }, []);
+    }, [runId]);
 
     useEffect(() => {
+        if (runId) {
+            return;
+        }
         if (progress === 100) {
             setTimeout(() => {
                 router.push("/dashboard");
             }, 500); // slight delay at 100% before redirect
         }
-    }, [progress, router]);
+    }, [progress, router, runId]);
+
+    useEffect(() => {
+        if (!runId) {
+            return;
+        }
+
+        let cancelled = false;
+        const poll = async () => {
+            try {
+                const status = await getAnalysisRunStatus(runId, user?.id);
+                if (cancelled) {
+                    return;
+                }
+
+                if (status.status === "completed") {
+                    setProgress(100);
+                    const query = propertyId ? `?property_id=${encodeURIComponent(propertyId)}` : "";
+                    router.push(`/dashboard${query}`);
+                    return;
+                }
+
+                if (status.status === "failed") {
+                    setError(status.error_message || "Analysis failed. Please try again.");
+                    return;
+                }
+
+                setProgress((prev) => Math.min(prev + 5, 95));
+                setTimeout(poll, 1500);
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : "Failed to check analysis status");
+                }
+            }
+        };
+
+        void poll();
+        return () => {
+            cancelled = true;
+        };
+    }, [runId, propertyId, router, user?.id]);
 
     useEffect(() => {
         // Change sub-message occasionally
@@ -84,10 +138,15 @@ export default function AnalysisProcessingView() {
                 {/* Property Card */}
                 <div className="flex items-center p-4 border border-gray-200 rounded-xl shadow-sm bg-white">
                     <div className="flex flex-col">
-                        <h2 className="text-lg font-bold text-gray-900">1248 Highland Avenue, Seattle WA</h2>
+                        <h2 className="text-lg font-bold text-gray-900">{address}</h2>
                         <p className="text-sm text-gray-500">Queen Anne, Seattle WA</p>
                     </div>
                 </div>
+                {error ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                        {error}
+                    </div>
+                ) : null}
 
                 {/* Title and Subtitle */}
                 <div className="flex flex-col gap-1">

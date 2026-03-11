@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Transit service
     TRANSIT_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 30
+    CRIME_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 7
 
     # Geocoding
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"

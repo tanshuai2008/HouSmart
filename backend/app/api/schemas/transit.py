@@ -11,10 +11,18 @@ class TransitStopImportRequest(BaseModel):
     )
 
 class AddressTransitRequest(BaseModel):
-    address: str = Field(
-        ...,
+    address: Optional[str] = Field(
+        default=None,
         min_length=5,
-        description="Full street address e.g. '1000 Main St, Houston, TX 77002'"
+        description="Full street address e.g. '1000 Main St, Houston, TX 77002'",
+    )
+    user_id: Optional[str] = Field(
+        default=None,
+        description="User ID for looking up property coordinates from user_properties.",
+    )
+    property_id: Optional[str] = Field(
+        default=None,
+        description="Property ID for looking up coordinates from user_properties.",
     )
     radius_meters: int = Field(
         default=800, ge=100, le=5000,

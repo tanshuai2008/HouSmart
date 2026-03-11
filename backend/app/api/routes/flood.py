@@ -3,7 +3,11 @@ from app.api.schemas.flood import (
     AddressFloodRequest,
     AddressFloodResponse,
 )
+from app.services.analysis_repository import AnalysisRepository
 from app.services.flood_service import (
+    HIGH_RISK_ZONES,
+    MODERATE_RISK_ZONES,
+    get_flood_zone,
     get_flood_zone_by_address,
 )
 
@@ -35,7 +39,38 @@ async def check_flood_by_address(request: AddressFloodRequest):
     - Whether the property is in a high/moderate/low flood-risk area, and structured evidence for underwriting.
     """
     try:
-        result = await get_flood_zone_by_address(address=request.address)
+        result = None
+        if request.user_id and request.property_id:
+            property_row = AnalysisRepository.get_user_property_by_id(
+                user_id=request.user_id,
+                property_id=request.property_id,
+            )
+            if property_row:
+                lat = property_row.get("latitude")
+                lng = property_row.get("longitude")
+                if lat is not None and lng is not None:
+                    flood_data = await get_flood_zone(float(lat), float(lng))
+                    fld_zone = flood_data["fld_zone"]
+                    result = {
+                        "address": request.address or property_row.get("address") or "",
+                        "property_lat": float(lat),
+                        "property_lng": float(lng),
+                        "fld_zone": fld_zone,
+                        "risk_label": flood_data["risk_label"],
+                        "flood_score": flood_data["flood_score"],
+                        "in_flood_zone": fld_zone in HIGH_RISK_ZONES,
+                        "in_moderate_zone": fld_zone in MODERATE_RISK_ZONES,
+                        "flood_data_unknown": flood_data["flood_data_unknown"],
+                        "source": flood_data["source"],
+                    }
+
+        if result is None:
+            if not request.address:
+                raise ValueError(
+                    "address is required when user_id/property_id is missing or has no stored coordinates"
+                )
+            result = await get_flood_zone_by_address(address=request.address)
+
         return {"status": "success", "data": AddressFloodResponse(**result)}
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e))

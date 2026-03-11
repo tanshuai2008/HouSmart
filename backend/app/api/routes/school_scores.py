@@ -6,7 +6,7 @@ from app.services.school_scores_service import (
     fetch_school_scores,
 )
 
-router = APIRouter(prefix="/api", tags=["School"])
+router = APIRouter(prefix="/api", tags=["school-scores"])
 
 
 @router.post(
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api", tags=["School"])
     status_code=status.HTTP_200_OK,
     summary="Get school scores for a property address",
 )
-def get_school_scores(payload: PropertyCreateRequest) -> SchoolScoreResponse:
+def resolve_school_scores(payload: PropertyCreateRequest) -> SchoolScoreResponse:
     """
     Returns nearby/matched school scores for a provided property address.
 
@@ -36,9 +36,10 @@ def get_school_scores(payload: PropertyCreateRequest) -> SchoolScoreResponse:
       - 500 for unexpected internal failures
 
     How it is calculated:
-    - Normalizes the input address and calls `get_property_school_scores` RPC.
-    - If no direct address match is found, extracts ZIP from address and queries `school_master`.
-    - Returns ranked/available school score rows from the data store.
+    - Extracts ZIP from the provided address (via regex or Google Geocoding).
+    - Resolves the school district ID associated with that ZIP code.
+    - Fetches all schools within that district that have a non-null HouSmart score.
+    - Enforces "Academic-First" scoring: only schools with valid academic data are included.
 
     What can be extracted:
     - School quality signal for location comparison, family-fit scoring, and neighborhood decisioning.

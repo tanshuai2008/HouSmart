@@ -208,16 +208,34 @@ def _cache_set(cache_key: str, value: dict) -> None:
         logger.warning("Transit cache SET failed: %s", exc)
 
 
+def _is_empty_cached_transit(value: dict) -> bool:
+    """Treat zero-stop payloads as refreshable so we can retry provider fetch."""
+    bus_count = int(value.get("bus_stop_count") or 0)
+    rail_count = int(value.get("rail_station_count") or 0)
+    nearest = value.get("nearest_stop_meters")
+    return bus_count == 0 and rail_count == 0 and nearest is None
+
+
 async def fetch_transit_stops(lat: float, lng: float, radius_meters: int = 800) -> dict:
     """Fetch transit stops from Google Places and cache the response."""
     cache_key = f"transit:google:{lat:.4f}:{lng:.4f}:{radius_meters}"
     cached = _cache_get(cache_key)
     if cached:
-        cached.setdefault("api_used", "cache")
-        return cached
+        if not _is_empty_cached_transit(cached):
+            cached.setdefault("api_used", "cache")
+            return cached
+        logger.info("Cache refresh forced for empty transit payload: %s", cache_key)
 
     async with httpx.AsyncClient(timeout=settings.GOOGLE_PLACES_HTTP_TIMEOUT_SECONDS) as client:
-        google_result = await _fetch_google_transit(client, lat, lng, radius_meters)
+        try:
+            google_result = await _fetch_google_transit(client, lat, lng, radius_meters)
+        except Exception:
+            # Keep endpoint resilient: if a refresh attempt fails, fallback to stale empty cache.
+            if cached:
+                logger.warning("Transit refresh failed; falling back to cached payload: %s", cache_key)
+                cached.setdefault("api_used", "cache")
+                return cached
+            raise
     if google_result is None:
         raise Exception("Google transit fetch failed: GOOGLE_MAPS_API_KEY is missing or invalid")
     result = google_result

@@ -1,9 +1,19 @@
-from fastapi import APIRouter, HTTPException, status
+from datetime import date
 
-from app.api.schemas.location import AddressRequest
+from fastapi import APIRouter, HTTPException, status
+from pydantic import BaseModel, Field
+from typing import Optional
+
+from app.services.analysis_repository import AnalysisRepository
 from app.services.median_house_price import get_median_house_price
 
 router = APIRouter(prefix="/api", tags=["median-house-price"])
+
+
+class MedianHousePriceRequest(BaseModel):
+    address: Optional[str] = Field(default=None, min_length=5)
+    user_id: Optional[str] = None
+    property_id: Optional[str] = None
 
 
 @router.post(
@@ -12,7 +22,7 @@ router = APIRouter(prefix="/api", tags=["median-house-price"])
     summary="Get median property price for the market of a given address",
 )
 def median_house_price_by_address(
-    payload: AddressRequest,
+    payload: MedianHousePriceRequest,
 ):
     """
     Returns median property price for the market corresponding to a provided address.
@@ -33,10 +43,67 @@ def median_house_price_by_address(
     What can be extracted:
     - Market baseline valuation context for affordability checks and pricing comparisons.
     """
-    result = get_median_house_price(address=payload.address)
-    if isinstance(result, dict) and result.get("error"):
+    resolved_address = (payload.address or "").strip() or None
+    resolved_from_user_property = False
+    if payload.user_id and payload.property_id:
+        property_row = AnalysisRepository.get_user_property_by_id(
+            user_id=payload.user_id,
+            property_id=payload.property_id,
+        )
+        if property_row:
+            resolved_candidate = (
+                property_row.get("normalized_address")
+                or property_row.get("address")
+                or resolved_address
+            )
+            resolved_address = (resolved_candidate or "").strip() or resolved_address
+            resolved_from_user_property = bool(resolved_address)
+
+    if not resolved_address:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(result["error"]),
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="address is required when user_id/property_id is missing or has no stored address",
+        )
+
+    result = get_median_house_price(address=resolved_address)
+    if isinstance(result, dict) and result.get("error"):
+        error_text = str(result["error"])
+        # Return non-fatal payload so aggregate/orchestrated flows can continue.
+        if error_text == "Address not found":
+            return {
+                "date": date.today().isoformat(),
+                "address": resolved_address,
+                "median_price": None,
+                "period": None,
+                "source": "Unavailable",
+                "status": "not_found",
+                "reason": "address_geocode_failed",
+                "message": "Median price lookup could not geocode the resolved address.",
+                "used_user_property": resolved_from_user_property,
+            }
+        if error_text.startswith("No median price data found for "):
+            return {
+                "date": date.today().isoformat(),
+                "address": resolved_address,
+                "median_price": None,
+                "period": None,
+                "source": "Unavailable",
+                "status": "not_found",
+                "reason": "market_data_not_found",
+                "message": "No Redfin median price market row exists for the resolved city/state.",
+                "used_user_property": resolved_from_user_property,
+                "upstream_error": error_text,
+            }
+
+        detail = {
+            "error_code": "MEDIAN_PRICE_LOOKUP_FAILED",
+            "message": "Median property price lookup failed.",
+            "resolved_address": resolved_address,
+            "used_user_property": resolved_from_user_property,
+            "upstream_error": error_text,
+        }
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=detail,
         )
     return result

@@ -1,333 +1,198 @@
 # HouSmart School Scoring Pipeline
 
-## Objective
+## Overview
 
-calculates a normalized **0–100 rating for every U.S. public school** using NCES and SEDA datasets.
-The system powers the **/property/school-scores API**, allowing users to send an address and receive a ranked list of nearby schools.
+The HouSmart School Scoring Pipeline calculates a normalized 0–100 school quality score for every U.S. public school using data from NCES (National Center for Education Statistics) and SEDA (Stanford Education Data Archive).
 
-The pipeline performs:
+The system powers the HouSmart property intelligence API, allowing users to submit a property address and receive ranked nearby schools.
 
-1. **Data ingestion** from NCES and SEDA datasets
-2. **Feature engineering** (student–teacher ratio, FRPL rate)
-3. **Score computation** (academic, resource, equity)
-4. **Upload to Supabase** (`school_master` table)
-5. **District synchronization**
-6. **Property → district mapping**
-7. **FastAPI endpoint for school ranking**
+The pipeline integrates:
 
----
+- National education datasets
+- Machine-engineered features
+- Custom HouSmart scoring algorithm
+- Supabase PostgreSQL database
+- FastAPI backend service
 
-# System Architecture
+The final system provides fast school intelligence queries for real estate analysis.
 
+## System Architecture
+
+```
 User Request
-
-↓
-
+     │
+     ▼
 FastAPI API
-
-↓
-
-Google Maps Geocoding (Address → ZIP)
-
-↓
-
-Supabase Query (ZIP → District → Schools)
-
-↓
-
-HouSmart Ranking Algorithm
-
-↓
-
-Ranked School Results
-
----
-
-# Data Sources
-
-## 1. NCES Common Core of Data
-
-Provides core school information.
-
-Datasets used:
-
-| Dataset                  | Purpose                 |
-| ------------------------ | ----------------------- |
-| `ccd_sch_029_directory`  | School directory        |
-| `ccd_sch_052_membership` | Enrollment counts       |
-| `ccd_sch_059_staff`      | Teacher counts          |
-| `ccd_sch_033_lunch`      | Free/Reduced lunch data |
-
----
-
-## 2. SEDA Dataset
-
-Provides academic performance metrics.
-
-Dataset:
-
-| Dataset                       | Metric               |
-| ----------------------------- | -------------------- |
-| `seda_school_pool_cs_6.0.csv` | Academic achievement |
-
-We use:
-
-```
-cs_mn_avg_eb
+     │
+     ▼
+Google Maps Geocoding
+(Address → ZIP)
+     │
+     ▼
+Supabase Query
+(ZIP → Schools)
+     │
+     ▼
+HouSmart Scoring Algorithm
+     │
+     ▼
+Ranked Schools Response
 ```
 
-Which represents **education-adjusted academic achievement**.
+## Data Sources
 
----
+### 1. NCES (Common Core of Data)
 
-# HouSmart School Score Algorithm
+The NCES dataset provides official information for U.S. public schools.
 
-Final Score:
+**Datasets used:**
+
+| Dataset | Purpose |
+|---------|---------|
+| ccd_sch_029_directory | School directory |
+| ccd_sch_052_membership | Enrollment counts |
+| ccd_sch_059_staff | Teacher counts |
+| ccd_sch_033_lunch | Free/Reduced lunch statistics |
+| ccd_sch_129_schoolChar | School characteristics |
+
+### 2. SEDA Dataset
+
+The Stanford Education Data Archive (SEDA) provides school-level academic performance metrics.
+
+**Dataset used:**
+
+- seda_school_pool_cs_6.0.csv
+
+**Key metric used:**
+
+- cs_mn_avg_eb: This metric represents education-adjusted academic achievement.
+
+## HouSmart School Score Algorithm
+
+The final HouSmart score combines three dimensions of school quality.
 
 ```
-Score = (0.6 × Academic) + (0.2 × Resource) + (0.2 × Equity)
+HouSmart Score =
+0.6 × Academic
++ 0.2 × Resource
++ 0.2 × Equity
 ```
 
-## 1. Academic Score (60%)
+### 1. Academic Score (60%)
 
-Metric:
+**Metric:**
 
-```
-cs_mn_avg_eb
-```
+- cs_mn_avg_eb
 
-Normalized per state:
+**Normalized within each state:**
 
 ```
-S_academic = (value − state_min) / (state_max − state_min) × 100
+S_academic =
+(value − state_min) / (state_max − state_min) × 100
 ```
 
----
+This removes state-level testing bias.
 
-## 2. Resource Score (20%)
+### 2. Resource Score (20%)
 
-Metric:
+**Metric:**
 
-```
-student_teacher_ratio
-```
+- student_teacher_ratio
 
-Formula:
+**Formula:**
 
-| Ratio | Score        |
-| ----- | ------------ |
-| < 12  | 100          |
+| Ratio | Score |
+|-------|-------|
+| < 12 | 100 |
 | 12–25 | Linear decay |
-| > 25  | 40           |
+| > 25 | 40 |
 
-Implementation:
+**Implementation:**
 
 ```
 score = 100 − (ratio − 12) × 4.6
 ```
 
----
+Lower ratios indicate more teacher attention per student.
 
-## 3. Equity Score (20%)
+### 3. Equity Score (20%)
 
-Metric:
+**Metric:**
 
-```
-FRPL rate
-```
+- FRPL rate (FRPL = Free/Reduced Price Lunch)
 
-Formula:
+**Formula:**
 
 ```
-S_equity = (1 − FRPL_rate/100) × 100
+S_equity = (1 − FRPL_rate / 100) × 100
 ```
 
 Lower poverty → higher score.
 
----
+## Data Pipeline
 
-# Data Pipeline
+**Pipeline script:**
 
-Script:
+- backend/app/data/nces_seda_ingest.py
 
-```
-backend/app/data/nces_seda_ingest.py
-```
-
-Pipeline steps:
+**Pipeline stages:**
 
 1. Load NCES datasets
 2. Load SEDA dataset
-3. Merge datasets
-4. Compute ratios
-5. Normalize academic score
-6. Compute HouSmart score
-7. Clean NaN values
-8. Upload to Supabase
+3. Merge datasets by NCESSCH
+4. Compute student-teacher ratio
+5. Compute FRPL rate
+6. Normalize academic scores by state
+7. Compute HouSmart school score
+8. Clean missing values
+9. Upload results to Supabase
 
----
+## Database Schema
 
-# Database Tables
+### school_master
 
-## school_master
+Main dataset containing ~100,000 U.S. schools.
 
-Main dataset (~100k schools)
+| Column | Description |
+|--------|-------------|
+| ncessch | NCES school ID |
+| school_name | School name |
+| district_id | District ID |
+| district_name | District name |
+| state | State |
+| zip_code | School ZIP code |
+| student_teacher_ratio | Enrollment / teachers |
+| frpl_rate | Free/reduced lunch percentage |
+| academic_score | Raw SEDA score |
+| s_academic | Normalized academic score |
+| s_resource | Resource score |
+| s_equity | Equity score |
+| housmart_school_score | Final HouSmart score |
 
-| Column                | Description               |
-| --------------------- | ------------------------- |
-| ncessch               | School ID                 |
-| school_name           | School name               |
-| district_id           | District ID               |
-| zip_code              | School ZIP                |
-| academic_score        | Raw academic metric       |
-| s_academic            | Normalized academic score |
-| s_resource            | Resource score            |
-| s_equity              | Equity score              |
-| housmart_school_score | Final score               |
-
----
-
-## school_districts
+### school_districts
 
 District reference table.
 
-| Column        | Description   |
-| ------------- | ------------- |
-| district_id   | District ID   |
+| Column | Description |
+|--------|-------------|
+| district_id | District ID |
 | district_name | District name |
-| state         | State         |
+| state | State |
 
----
+### property_school_district
 
-## property_school_district
+Links properties to school districts.
 
-Links properties to districts.
-
-| Column      | Description   |
-| ----------- | ------------- |
+| Column | Description |
+|--------|-------------|
 | property_id | Property UUID |
-| district_id | District ID   |
+| district_id | School district |
 
----
+## SQL Queries Used
 
-# Automatic District Sync
+### Create Performance Indexes
 
-SQL Function:
-
-```
-sync_school_districts()
-```
-
-```
-INSERT INTO school_districts
-SELECT DISTINCT district_id, district_name, state
-FROM school_master
-ON CONFLICT DO NOTHING
-```
-
-Ensures districts stay updated.
-
----
-
-# Property Mapping
-
-Function:
-
-```
-map_properties_to_districts()
-```
-
-Maps properties using ZIP codes:
-
-```
-properties.zip_code = school_master.zip_code
-```
-
-This populates `property_school_district`.
-
----
-
-# API Endpoint
-
-Route:
-
-```
-POST /property/school-scores
-```
-
-Example request:
-
-```
-{
- "address": "5000 Main St, Houston, TX"
-}
-```
-
----
-
-# Google Maps Integration
-
-Used to convert address → ZIP code.
-
-Service:
-
-```
-geocode_service.py
-```
-
-API:
-
-```
-Google Maps Geocoding API
-```
-
----
-
-# School Query Logic
-
-Process:
-
-1. Address → ZIP
-2. ZIP → District
-3. District → Schools
-4. Sort by HouSmart score
-
-Query:
-
-```
-ORDER BY housmart_school_score DESC
-```
-
-Top schools returned.
-
----
-
-# Example Response
-
-```
-{
- "zip_code": "30308",
- "total_schools": 10,
- "schools": [
-   {
-     "school_name": "Springdale Park Elementary",
-     "housmart_school_score": 72.4
-   },
-   {
-     "school_name": "Midtown High School",
-     "housmart_school_score": 65.1
-   }
- ]
-}
-```
-
----
-
-# Performance Optimizations
-
-Indexes added:
-
-```
+```sql
 CREATE INDEX idx_school_zip
 ON school_master(zip_code);
 
@@ -335,39 +200,112 @@ CREATE INDEX idx_school_district
 ON school_master(district_id);
 ```
 
-Benefits:
+These improve:
 
-• Fast school lookup
-• Low latency API responses (~5–20ms)
+- ZIP lookups
+- district joins
 
----
+### District Synchronization
 
-# Final Result
+Ensures all districts exist in school_districts.
 
-The system now supports:
+```sql
+CREATE OR REPLACE FUNCTION sync_school_districts()
+RETURNS void
+LANGUAGE sql
+AS $$
+INSERT INTO school_districts (district_id, district_name, state)
+SELECT DISTINCT district_id, district_name, state
+FROM school_master
+ON CONFLICT (district_id) DO NOTHING;
+$$;
+```
 
-✔ 99k+ U.S. schools
-✔ Academic + resource + equity scoring
-✔ Automatic district mapping
-✔ Fast API queries
-✔ Ranked school recommendations
+### Property → District Mapping
 
-The HouSmart pipeline is now **fully operational and production ready**.
+Links properties to districts.
 
----
+```sql
+INSERT INTO property_school_district (property_id, district_id)
+SELECT
+    p.id,
+    sm.district_id
+FROM properties p
+JOIN school_master sm
+ON p.zip_code = sm.zip_code
+GROUP BY p.id, sm.district_id
+ON CONFLICT DO NOTHING;
+```
 
-# Next Improvements
+### Address-Based School Lookup (RPC)
 
-Potential upgrades:
+Used for similarity-based property matching.
 
-• Distance-based school search
-• GIS district boundary matching
-• School trend prediction models
-• Property investment scoring
+```sql
+CREATE OR REPLACE FUNCTION get_property_school_scores(search_address text)
+RETURNS TABLE (
+    school_name text,
+    level text,
+    housmart_school_score numeric,
+    s_academic numeric,
+    s_resource numeric,
+    s_equity numeric
+)
+LANGUAGE sql
+AS $$
+WITH closest_property AS (
+    SELECT id
+    FROM properties
+    ORDER BY similarity(formatted_address, search_address) DESC
+    LIMIT 1
+)
+SELECT
+    sm.school_name,
+    sm.level,
+    sm.housmart_school_score,
+    sm.s_academic,
+    sm.s_resource,
+    sm.s_equity
+FROM closest_property cp
+JOIN property_school_district psd
+ON cp.id = psd.property_id
+JOIN school_master sm
+ON psd.district_id = sm.district_id
+ORDER BY sm.housmart_school_score DESC;
+$$;
+```
 
----
+## API Endpoint
 
-**Project:** HouSmart AI
-**Module:** School Scoring Engine
-**Author:** Ahmed Sherif
-**Year:** 2026
+**Endpoint:**
+
+```
+POST /api/property/school-scores
+```
+
+**Example request:**
+
+```json
+{
+  "address": "5000 Main St, Houston, TX"
+}
+```
+
+## Example Response
+
+```json
+{
+  "zip_code": "77002",
+  "total_schools": 4,
+  "schools": [
+    {
+      "school_name": "LEADERSHIP ACADEMY",
+      "level": "Secondary",
+      "housmart_school_score": 47.48,
+      "s_academic": 38.64,
+      "s_resource": 40.0,
+      "s_equity": 81.46
+    }
+  ]
+}
+```

@@ -1,8 +1,8 @@
 import requests
-import os
+from app.core.config import get_settings
 
-GOOGLE_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
-
+settings = get_settings()
+GOOGLE_MAPS_API_KEY = settings.GOOGLE_MAPS_API_KEY
 
 def get_zip_from_address(address: str):
 
@@ -10,7 +10,7 @@ def get_zip_from_address(address: str):
 
     params = {
         "address": address,
-        "key": GOOGLE_API_KEY
+        "key": GOOGLE_MAPS_API_KEY
     }
 
     response = requests.get(url, params=params)

@@ -11,6 +11,7 @@ from app.api.routes import (
     flood,
     health,
     income,
+    market_trends,
     median_house_price,
     noise_estimator,
     property,
@@ -46,6 +47,7 @@ app.include_router(evaluation.router)
 app.include_router(crime_score.router)
 app.include_router(transit.router)
 app.include_router(flood.router)
+app.include_router(market_trends.router)
 
 
 @app.get("/")

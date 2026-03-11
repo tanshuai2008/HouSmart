@@ -1,3 +1,33 @@
-from . import health, rent_estimate
+from . import (
+	crime_score,
+	education,
+	evaluation,
+	flood,
+	health,
+	income,
+	market_trends,
+	median_house_price,
+	noise_estimator,
+	property,
+	rent_estimate,
+	road_map,
+	school_scores,
+	transit,
+)
 
-__all__ = ["health", "rent_estimate"]
+__all__ = [
+	"crime_score",
+	"education",
+	"evaluation",
+	"flood",
+	"health",
+	"income",
+	"market_trends",
+	"median_house_price",
+	"noise_estimator",
+	"property",
+	"rent_estimate",
+	"road_map",
+	"school_scores",
+	"transit",
+]

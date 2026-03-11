@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { PropertyVerdict } from "@/components/dashboard/PropertyVerdict";
@@ -10,6 +10,7 @@ import { MarketTrends } from "@/components/dashboard/MarketTrends";
 import { ComparableListings } from "@/components/dashboard/ComparableListings";
 
 import mockDashboardData from "@/lib/mockData";
+import type { PriceTrendDataPoint, RevenueExpensesDataPoint } from "@/lib/mockData";
 
 import aiCustomizationIcon from "@/assets/dashboard/chat/ai-customization.svg";
 import feedbackIcon from "@/assets/dashboard/chat/feedback.svg";
@@ -27,15 +28,43 @@ export default function DashboardPage() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'ai' | 'feedback'>('ai');
 
+    const [priceTrend, setPriceTrend] = useState<PriceTrendDataPoint[]>(mockDashboardData.priceTrend);
+    const [revenueExpenses, setRevenueExpenses] = useState<RevenueExpensesDataPoint[]>(mockDashboardData.revenueExpenses);
+
     const {
         property,
         insight,
         financialMetrics,
-        priceTrend,
-        revenueExpenses,
         locationScores,
         comparableListings,
     } = mockDashboardData;
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        async function loadTrends() {
+            try {
+                const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
+                const res = await fetch(`${baseUrl}/api/market-trends`, {
+                    signal: controller.signal,
+                });
+                if (!res.ok) return;
+
+                const data = (await res.json()) as {
+                    priceTrend?: PriceTrendDataPoint[];
+                    revenueExpenses?: RevenueExpensesDataPoint[];
+                };
+
+                if (Array.isArray(data.priceTrend)) setPriceTrend(data.priceTrend);
+                if (Array.isArray(data.revenueExpenses)) setRevenueExpenses(data.revenueExpenses);
+            } catch {
+                // Fall back silently to mock data.
+            }
+        }
+
+        loadTrends();
+        return () => controller.abort();
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#F3F4F6] font-sans relative">

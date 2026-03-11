@@ -11,21 +11,15 @@ load_dotenv(_BACKEND_DIR / ".env")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Missing Supabase credentials")
+# Keep this as a module-level singleton to match existing imports.
+# If credentials are missing, this stays as None so the API can still start
+# for endpoints that don't require Supabase.
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-import os
-from supabase import create_client
-from dotenv import load_dotenv
-
-load_dotenv()
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-if not SUPABASE_URL or not SUPABASE_KEY:
-    raise RuntimeError("Missing Supabase credentials")
-
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+def require_supabase():
+    if supabase is None:
+        raise RuntimeError(
+            "Missing Supabase credentials (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)"
+        )
+    return supabase

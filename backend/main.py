@@ -1,52 +1,30 @@
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 from pathlib import Path
-=======
-# HouSmart/backend/main.py
-=======
-from dotenv import load_dotenv
->>>>>>> origin/Jhanvi_RentEstimation
-from fastapi import FastAPI
-from app.api.routes import health, property, education, income, evaluation
->>>>>>> origin/Census-Tract-Mapping
-=======
-from dotenv import load_dotenv
-from fastapi import FastAPI
-<<<<<<< HEAD
-=======
-from app.api.routes import health
-<<<<<<< HEAD
-from app.api.routes.school_scores import router as school_router
-=======
-from app.api.routes import rent_estimate
-
-# Load environment variables from .env
-load_dotenv()
->>>>>>> origin/Jhanvi_RentEstimation
-
->>>>>>> origin/Ahmed_School_boundary_Rankings
-
-from app.api.routes import health
-from app.api.routes import crime_score
-
-# Load environment variables from .env
-load_dotenv()
->>>>>>> origin/Jhanvi_CrimeScore
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, median_house_price, noise_estimator, road_map
+from app.api.routes import (
+    crime_score,
+    education,
+    evaluation,
+    flood,
+    health,
+    income,
+    market_trends,
+    median_house_price,
+    noise_estimator,
+    property,
+    rent_estimate,
+    road_map,
+    school_scores,
+    transit,
+)
 
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
 app = FastAPI(title="HouSmart Backend API")
 
-# Allow the Next.js dev server (and configurable prod origins) to call the API.
 allowed_origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -61,41 +39,21 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 app.include_router(median_house_price.router)
 app.include_router(noise_estimator.router)
 app.include_router(road_map.router)
-
-=======
 app.include_router(property.router)
 app.include_router(education.router)
 app.include_router(income.router)
 app.include_router(evaluation.router)
->>>>>>> origin/Census-Tract-Mapping
-=======
 app.include_router(crime_score.router)
->>>>>>> origin/Jhanvi_CrimeScore
-=======
-app.include_router(school_router, prefix="/api")
->>>>>>> origin/Ahmed_School_boundary_Rankings
-=======
+app.include_router(transit.router)
+app.include_router(flood.router)
+app.include_router(school_scores.router)
 app.include_router(rent_estimate.router)
->>>>>>> origin/Jhanvi_RentEstimation
+app.include_router(market_trends.router)
+
 
 @app.get("/")
 def root():
     return {"message": "HouSmart Backend Running"}
-<<<<<<< HEAD
-=======
-from app.main import app
-
->>>>>>> origin/Imene_TransitScore
-=======
-from app.main import app
-
->>>>>>> origin/Imene_FloodRiskScore
-=======
->>>>>>> origin/Jhanvi_RentEstimation

@@ -1,8 +1,9 @@
 import math
 import time
+
 import requests
 
-from app.config.db import supabase
+from app.config.db import require_supabase
 from app.services.geocode import geocode_address
 
 
@@ -101,9 +102,9 @@ def classify_noise(distance):
 
 
 # --------------------------------------------------
-# Estimate Noise Level
+# Estimate Noise Level (by address)
 # --------------------------------------------------
-def estimate_noise(address: str):
+def estimate_noise_from_address(address: str):
 
     if not address.strip():
         return {"error": "Address required"}
@@ -118,6 +119,8 @@ def estimate_noise(address: str):
     # --------------------------------------------------
     # Check Supabase Cache
     # --------------------------------------------------
+    supabase = require_supabase()
+
     existing = (
         supabase.table("noise_scores")
         .select("*")
@@ -168,12 +171,29 @@ def estimate_noise(address: str):
 
 
 # --------------------------------------------------
+# Estimate Noise Level (by coordinates)
+# --------------------------------------------------
+def estimate_noise(lat: float, lon: float):
+
+    distance = nearest_road_distance(lat, lon)
+    noise = classify_noise(distance)
+
+    return {
+        "lat": lat,
+        "lon": lon,
+        "noise_level": noise,
+        "distance_to_road_m": distance,
+        "source": "OpenStreetMap"
+    }
+
+
+# --------------------------------------------------
 # CLI TEST
 # --------------------------------------------------
 if __name__ == "__main__":
 
     addr = input("Enter property address: ").strip()
 
-    result = estimate_noise(addr)
+    result = estimate_noise_from_address(addr)
 
     print(result)

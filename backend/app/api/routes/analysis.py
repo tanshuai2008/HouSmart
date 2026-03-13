@@ -61,3 +61,38 @@ def get_recent_searches(user_id: UUID = Query(...), limit: int = Query(default=3
         for row in rows
         if row.get("property_id") and row.get("address")
     ]
+
+@router.post("/property/analyze/{run_id}/ai")
+async def trigger_ai_recommendation(run_id: UUID):
+    try:
+        # 1. Get run details to find property and user
+        run_row = AnalysisRepository.get_run(run_id=str(run_id))
+        if not run_row:
+            raise HTTPException(status_code=404, detail="Run not found")
+        
+        property_id = run_row["property_id"]
+        # We need the user_id associated with this property
+        prop_resp = supabase.table("user_properties").select("user_id").eq("property_id", property_id).single().execute()
+        user_id = prop_resp.data["user_id"]
+
+        # 2. Gather snapshot for AI
+        snapshot = AnalysisRepository.get_ai_snapshot(
+            user_id=user_id,
+            property_id=property_id,
+            run_id=str(run_id)
+        )
+
+        # 3. Call AI engine
+        from app.ai.engine import generate_ai_recommendation
+        
+        result = generate_ai_recommendation(
+            evaluation_id=str(run_id),
+            evaluation_data=snapshot,
+            priority_ranking=snapshot["onboarding"].get("priorities_ranking_ques"),
+            user_profile=snapshot["onboarding"],
+            db_session=supabase
+        )
+
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -15,24 +15,37 @@ import { useAuth } from "@/providers/auth-context";
 import styles from "./dashboard-header.module.css";
 
 interface DashboardHeaderProps {
-    searchValue?: string;
-    onSearchChange?: (value: string) => void;
     userName?: string;
     userRole?: string;
     userAvatar?: StaticImageData | string;
+    showPropertySearch?: boolean;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
-    searchValue = "1248 Highland Avenue, Seattle WA",
-    onSearchChange,
     userName = "John Doe",
     userRole = "Pro Investor",
     userAvatar = userAvatarImg,
+    showPropertySearch = false,
 }) => {
     const router = useRouter();
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
+    const [address, setAddress] = useState("");
+    const [isSubmittingSearch, setIsSubmittingSearch] = useState(false);
+
+    const submitPropertySearch = async () => {
+        const finalAddress = address.trim();
+        if (!finalAddress || isSubmittingSearch || !user?.id) {
+            return;
+        }
+
+        setIsSubmittingSearch(true);
+        const query = new URLSearchParams({
+            address: finalAddress,
+        });
+        router.push(`/analyze?${query.toString()}`);
+    };
 
     const handleSignOut = async () => {
         setIsSigningOut(true);
@@ -56,17 +69,24 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
                     <Image src={logoText} alt="HouSmart" width={80} height={21} className={styles.logoText} />
                 </Link>
 
-                <div className={styles.searchWrap}>
-                    <Search className={styles.searchIcon} size={14} />
-                    <input
-                        type="text"
-                        value={searchValue}
-                        onChange={(event) => onSearchChange?.(event.target.value)}
-                        className={styles.searchInput}
-                        placeholder="Search address..."
-                        readOnly={!onSearchChange}
-                    />
-                </div>
+                {showPropertySearch && (
+                    <div className={styles.searchWrap}>
+                        <Search size={16} className={styles.searchIcon} />
+                        <input
+                            type="text"
+                            placeholder="Enter full property address"
+                            className={styles.searchInput}
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    void submitPropertySearch();
+                                }
+                            }}
+                        />
+                    </div>
+                )}
 
                 <div className={styles.actions}>
                     <button type="button" className={styles.iconButton}>

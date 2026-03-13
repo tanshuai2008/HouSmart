@@ -1,6 +1,35 @@
-# Scoring and Derived Formula Reference (11 March 2026)
+# Scoring and Schema Reference (12 March 2026)
 
-Date: 11 March 2026
+Date: 12 March 2026
+
+## 0) Schema and migration updates
+
+### `property_user_scores.noise_score` type change
+- Column changed from text to numeric:
+  - `noise_score numeric(5,1)`
+- Migration:
+  - `012_property_user_scores_noise_numeric.sql`
+- Legacy value handling during conversion:
+  - `Low -> 25.0`
+  - `Moderate -> 50.0`
+  - `High -> 75.0`
+  - `Very High -> 90.0`
+  - numeric-looking text is cast directly
+  - unknown text becomes `NULL`
+
+### Backfill for already-migrated environments
+- Migration:
+  - `013_backfill_property_user_scores_noise_from_facts.sql`
+- Behavior:
+  - Backfills `property_user_scores.noise_score` from `property_facts.noise_index`
+  - Applies where `noise_score IS NULL` and a matching `(run_id, property_id)` facts row exists.
+
+### `property_facts` noise support fields
+- Numeric support columns are available:
+  - `noise_index numeric(5,1)`
+  - `estimated_noise_db numeric(5,1)`
+- Migration:
+  - `011_property_facts_noise_numeric_fields.sql`
 
 ## 1) Derived indices in `property_facts`
 
@@ -24,9 +53,9 @@ Date: 11 March 2026
 
 ## 2) Stored user scores (`property_user_scores`, `scoring_version = v1`)
 
-Current v1 stores raw endpoint-derived scores (not a single weighted blended score yet):
-- `amenity_score`
-- `transit_score`
+Current v1 stores per-metric scores (not a single blended overall score):
+- `amenity_score` (priority-weighted, numeric 0-100)
+- `transit_score` (numeric 0-100)
 - `noise_score` (numeric `noise_index`, 0-100)
 - `school_score`
 - `safety_score`
@@ -80,7 +109,7 @@ Current v1 stores raw endpoint-derived scores (not a single weighted blended sco
   - Clamped `[0, 100]`, rounded to 1 decimal.
 - Estimated dB:
   - `estimated_noise_db = 35 + (noise_index / 100) * 45`
-- Level labels from distance:
+- Level labels from distance (for explainability):
   - `<20m: Very High`, `<50m: High`, `<100m: Moderate`, else `Low`.
 
 ### School score (property-level)
@@ -112,10 +141,10 @@ Current v1 stores raw endpoint-derived scores (not a single weighted blended sco
   - `X/C -> 95`
   - fallback `D -> 50`
 
-## 4) Variable scoring (priority-weighting status)
+## 4) Priority weighting status
 
-- Onboarding priorities (`priorities_ranking_ques`) are actively used for amenity scoring only.
-- Rank order is converted to fixed weights `0.4/0.3/0.2/0.1` and mapped to amenity categories as defined above.
+- Onboarding priorities (`priorities_ranking_ques`) are actively used for amenity scoring.
+- Rank order is converted to fixed weights `0.4/0.3/0.2/0.1` and mapped to amenity categories as above.
 - Other metrics currently remain raw endpoint/service-derived scores.
 - System persists per-metric scores plus `scoring_version = v1`.
 

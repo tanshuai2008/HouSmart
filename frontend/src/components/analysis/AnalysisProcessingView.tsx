@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
-import { getAnalysisRunStatus } from "@/lib/api/analysis";
+import { getAnalysisRunStatus, startPropertyAnalysis } from "@/lib/api/analysis";
 import { useAuth } from "@/providers/auth-context";
 
 // Assumed asset paths
@@ -44,36 +44,20 @@ export default function AnalysisProcessingView() {
     const [progress, setProgress] = useState(0);
     const [processingMessageIdx, setProcessingMessageIdx] = useState(0);
     const [error, setError] = useState<string | null>(null);
+    const [isCompleting, setIsCompleting] = useState(false);
 
     useEffect(() => {
-        if (runId) {
-            return;
-        }
-        // Total duration: let's say 8 seconds to 100%
-        // 8000ms / 100 = 80ms per 1%
         const interval = setInterval(() => {
             setProgress((prev) => {
-                if (prev >= 100) {
-                    clearInterval(interval);
-                    return 100;
+                if (isCompleting) {
+                    return Math.min(prev + 4, 100);
                 }
-                return prev + 1; /* increment by 1% */
+                return Math.min(prev + 1, 95);
             });
-        }, 80);
+        }, 300);
 
         return () => clearInterval(interval);
-    }, [runId]);
-
-    useEffect(() => {
-        if (runId) {
-            return;
-        }
-        if (progress === 100) {
-            setTimeout(() => {
-                router.push("/dashboard");
-            }, 500); // slight delay at 100% before redirect
-        }
-    }, [progress, router, runId]);
+    }, [isCompleting]);
 
     useEffect(() => {
         if (!runId) {
@@ -89,6 +73,7 @@ export default function AnalysisProcessingView() {
                 }
 
                 if (status.status === "completed") {
+                    setIsCompleting(true);
                     setProgress(100);
                     const query = propertyId ? `?property_id=${encodeURIComponent(propertyId)}` : "";
                     router.push(`/dashboard${query}`);
@@ -116,6 +101,38 @@ export default function AnalysisProcessingView() {
     }, [runId, propertyId, router, user?.id]);
 
     useEffect(() => {
+        if (runId) {
+            return;
+        }
+        if (!address.trim() || !user?.id) {
+            return;
+        }
+
+        let cancelled = false;
+        const start = async () => {
+            try {
+                const result = await startPropertyAnalysis(user.id, address);
+                if (cancelled) {
+                    return;
+                }
+                setIsCompleting(true);
+                setProgress(100);
+                const query = result.property_id ? `?property_id=${encodeURIComponent(result.property_id)}` : "";
+                router.push(`/dashboard${query}`);
+            } catch (err) {
+                if (!cancelled) {
+                    setError(err instanceof Error ? err.message : "Failed to start analysis");
+                }
+            }
+        };
+
+        void start();
+        return () => {
+            cancelled = true;
+        };
+    }, [address, router, runId, user?.id]);
+
+    useEffect(() => {
         // Change sub-message occasionally
         const messageInterval = setInterval(() => {
             setProcessingMessageIdx((prev) => {
@@ -130,6 +147,21 @@ export default function AnalysisProcessingView() {
     // 0-19% (0), 20-39% (1), 40-59% (2), 60-79% (3), 80-100% (4)
     const currentStepIndex = Math.min(Math.floor(progress / 20), 4);
     const estimatedTimeRemaining = Math.max(0, Math.ceil((100 - progress) * 80 / 1000));
+    const { addressLineOne, addressLineTwo } = useMemo(() => {
+        const normalized = address.trim();
+        const firstCommaIndex = normalized.indexOf(",");
+        if (firstCommaIndex === -1) {
+            return {
+                addressLineOne: normalized,
+                addressLineTwo: "",
+            };
+        }
+
+        return {
+            addressLineOne: normalized.slice(0, firstCommaIndex).trim(),
+            addressLineTwo: normalized.slice(firstCommaIndex + 1).trim(),
+        };
+    }, [address]);
 
     return (
         <div className="min-h-[calc(100vh-56px)] bg-white flex flex-col items-center pt-10 px-4 font-sans text-gray-900">
@@ -138,8 +170,8 @@ export default function AnalysisProcessingView() {
                 {/* Property Card */}
                 <div className="flex items-center p-4 border border-gray-200 rounded-xl shadow-sm bg-white">
                     <div className="flex flex-col">
-                        <h2 className="text-lg font-bold text-gray-900">{address}</h2>
-                        <p className="text-sm text-gray-500">Queen Anne, Seattle WA</p>
+                        <h2 className="text-lg font-bold text-gray-900">{addressLineOne}</h2>
+                        {addressLineTwo ? <p className="text-sm text-gray-500">{addressLineTwo}</p> : null}
                     </div>
                 </div>
                 {error ? (

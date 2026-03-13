@@ -28,7 +28,7 @@ def fetch_rent_estimate(
         propertyType=None,
         bedrooms=None,
         bathrooms=None,
-        compCount=None,
+        compCount=5,
     )
 
     http = session or requests.Session()

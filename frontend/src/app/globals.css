@@ -64,3 +64,17 @@
 .typing-dot-3 {
   animation-delay: 0.3s;
 }
+
+/* Dashboard map control sizing */
+.location-map-surface .gm-style .gm-style-mtc,
+.location-map-surface .gm-style .gm-bundled-control {
+  transform: scale(0.88);
+}
+
+.location-map-surface .gm-style .gm-style-mtc {
+  transform-origin: left bottom;
+}
+
+.location-map-surface .gm-style .gm-bundled-control {
+  transform-origin: right bottom;
+}

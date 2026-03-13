@@ -5,6 +5,7 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
+from app.data.poi_categories import POI_CATEGORIES
 from app.core.crime_scoring import compute_crime_safety_score
 from app.core.rent_estimate import fetch_rent_estimate
 from app.services.analysis_repository import AnalysisRepository
@@ -28,6 +29,8 @@ _crime_fbi_client = FbiCrimeDataClient()
 # - "property_facts_only": writes user_properties + property_facts (+run row state)
 # - "full": runs complete pipeline and writes all target tables
 ANALYSIS_STAGE_MODE = "full"
+_AMENITY_PRIORITY_DEFAULT_ORDER = ["safety", "proximity", "demographics", "schools"]
+_AMENITY_PRIORITY_RANK_WEIGHTS = [0.4, 0.3, 0.2, 0.1]
 
 
 def _source_label(payload: dict[str, Any], default: str) -> str:
@@ -128,43 +131,70 @@ def _compute_affordability_index(rent: Optional[float], median_income: Optional[
 def _compute_rent_to_price(rent: Optional[float], median_price: Optional[float]) -> Optional[float]:
     if not rent or not median_price or median_price <= 0:
         return None
-    return round((rent * 12.0 / median_price) * 100.0, 3)
+    return round((rent / median_price) * 100.0, 3)
+
+
+def _build_amenity_priority_weights(onboarding: Optional[dict[str, Any]]) -> dict[str, float]:
+    priorities_raw = (onboarding or {}).get("priorities_ranking_ques")
+    known = set(_AMENITY_PRIORITY_DEFAULT_ORDER)
+    ordered: list[str] = []
+    for item in priorities_raw if isinstance(priorities_raw, list) else []:
+        key = str(item).strip().lower()
+        if key in known and key not in ordered:
+            ordered.append(key)
+    for key in _AMENITY_PRIORITY_DEFAULT_ORDER:
+        if key not in ordered:
+            ordered.append(key)
+
+    return {
+        key: _AMENITY_PRIORITY_RANK_WEIGHTS[idx]
+        for idx, key in enumerate(ordered[:4])
+    }
+
+
+def _compute_weighted_amenity_score(
+    amenity_payload: dict[str, Any],
+    onboarding: Optional[dict[str, Any]],
+) -> Optional[float]:
+    if not isinstance(amenity_payload, dict) or not amenity_payload:
+        return None
+
+    priorities = _build_amenity_priority_weights(onboarding)
+    category_weights = {
+        "education": priorities["schools"],
+        "retail": priorities["proximity"] * 0.5,
+        "healthcare": priorities["demographics"],
+        "lifestyle": priorities["safety"],
+        "transit": priorities["proximity"] * 0.5,
+    }
+
+    weighted_sum = 0.0
+    for category_name, category_weight in category_weights.items():
+        category_cfg = POI_CATEGORIES.get(category_name)
+        category_data = amenity_payload.get(category_name)
+        if not category_cfg or not isinstance(category_data, dict):
+            continue
+
+        count = _to_float(category_data.get("count")) or 0.0
+        category_norm = min(max(count, 0.0) / float(category_cfg.threshold), 1.0)
+        weighted_sum += category_norm * category_weight
+
+    return round(min(max(weighted_sum * 100.0, 0.0), 100.0), 1)
 
 
 def _build_user_scores(
     *,
     amenity_score: Optional[float],
     transit_score: Optional[float],
-    noise_score: Optional[str],
+    noise_score: Optional[float],
     school_score: Optional[float],
     safety_score: Optional[float],
     flood_score: Optional[float],
-    onboarding: Optional[dict[str, Any]],
 ) -> dict[str, Any]:
-    priorities = (onboarding or {}).get("priorities_ranking_ques") or []
-
-    weights = {
-        "amenity": 1.0,
-        "transit": 1.0,
-        "noise": 1.0,
-        "school": 1.0,
-        "safety": 1.0,
-        "flood": 1.0,
-    }
-
-    if isinstance(priorities, list) and priorities:
-        boost = [1.2, 1.15, 1.1, 1.05]
-        for idx, key in enumerate(priorities[:4]):
-            k = str(key).lower()
-            for metric in weights:
-                if metric in k:
-                    weights[metric] = boost[idx]
-
-    # Keep flood score numeric, and noise score as categorical text from endpoint.
+    # Keep flood score and noise score numeric.
     flood_normalized = None if flood_score is None else flood_score
-    noise_normalized = (noise_score or "").strip() or None
+    noise_normalized = _to_float(noise_score)
 
-    # Keep onboarding read in place for next scoring-version expansion; current v1 stores raw endpoint-derived scores.
     return {
         "amenity_score": amenity_score,
         "transit_score": transit_score,
@@ -417,13 +447,12 @@ async def analyze_property_for_user(*, user_id: UUID, address: str) -> dict[str,
 
         onboarding = get_onboarding_answers_by_user_id(user_id)
         user_scores = _build_user_scores(
-            amenity_score=_to_float(amenity_payload.get("composite_score")),
+            amenity_score=_compute_weighted_amenity_score(amenity_payload, onboarding),
             transit_score=_to_float(transit_payload.get("transit_score")),
-            noise_score=(noise_payload.get("noise_level") or None),
+            noise_score=_to_float(noise_payload.get("noise_index")),
             school_score=_extract_school_score(school_payload),
             safety_score=_to_float(crime_payload.get("safety_score")),
             flood_score=_to_float(flood_payload.get("flood_score")),
-            onboarding=onboarding,
         )
 
         AnalysisRepository.upsert_user_scores(

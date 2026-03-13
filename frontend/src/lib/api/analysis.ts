@@ -21,6 +21,11 @@ export interface DashboardPropertyPayload {
     comparables: Record<string, unknown>[];
 }
 
+export interface RecentSearch {
+    property_id: string;
+    address: string;
+}
+
 export async function startPropertyAnalysis(userId: string, address: string): Promise<StartAnalysisResponse> {
     const response = await fetch(`${API_BASE_URL}/api/property/analyze`, {
         method: "POST",
@@ -77,4 +82,24 @@ export async function getDashboardProperty(userId: string, propertyId: string): 
     }
 
     return data as DashboardPropertyPayload;
+}
+
+export async function getRecentSearches(userId: string, limit = 3): Promise<RecentSearch[]> {
+    const query = new URLSearchParams({ user_id: userId, limit: String(limit) });
+    const response = await fetch(`${API_BASE_URL}/api/property/recent-searches?${query.toString()}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "x-user-id": userId,
+        },
+        cache: "no-store",
+    });
+
+    const data = await response.json().catch(() => ([]));
+    if (!response.ok) {
+        const detail = typeof data?.detail === "string" ? data.detail : "Failed to fetch recent searches";
+        throw new Error(detail);
+    }
+
+    return Array.isArray(data) ? (data as RecentSearch[]) : [];
 }

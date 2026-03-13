@@ -20,7 +20,9 @@ def _compute_transit_score(
 ) -> float:
     """
     Normalized 0-100 score based on stop density and proximity.
-    Weights: bus density 40%, rail density 40%, nearest-stop proximity 20%.
+    Availability-aware weights:
+    - nearest-stop proximity keeps fixed 20%
+    - bus/rail share the remaining 80% across modes that are present
     """
     if bus_count <= 0 and rail_count <= 0:
         return 5.0
@@ -34,7 +36,12 @@ def _compute_transit_score(
     else:
         proximity_norm = max(0.0, 1.0 - (nearest_meters / float(radius_meters)))
 
-    score = (bus_norm * 40.0) + (rail_norm * 40.0) + (proximity_norm * 20.0)
+    mode_weight_pool = 80.0
+    active_modes = int(bus_count > 0) + int(rail_count > 0)
+    bus_weight = (mode_weight_pool / active_modes) if bus_count > 0 else 0.0
+    rail_weight = (mode_weight_pool / active_modes) if rail_count > 0 else 0.0
+
+    score = (bus_norm * bus_weight) + (rail_norm * rail_weight) + (proximity_norm * 20.0)
     return float(round(max(5.0, min(100.0, score)), 1))
 
 

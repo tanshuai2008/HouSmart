@@ -35,7 +35,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-BACKEND_DIR = SCRIPT_DIR.parents[2]
+BACKEND_DIR = SCRIPT_DIR.parents[3]
 load_dotenv(BACKEND_DIR / ".env")
 
 SUPABASE_URL         = os.getenv("SUPABASE_URL")

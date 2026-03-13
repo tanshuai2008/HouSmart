@@ -25,42 +25,45 @@
   flex-shrink: 0;
 }
 
-.logoText {
-  display: none;
-}
-
 .searchWrap {
-  position: relative;
-  width: 100%;
-  max-width: 420px;
   flex: 1;
+  max-width: 37.5rem;
+  position: relative;
+  display: none;
 }
 
 .searchIcon {
   position: absolute;
-  left: 0.75rem;
+  left: 1rem;
   top: 50%;
   transform: translateY(-50%);
-  color: #9ca3af;
+  color: #98a2b3;
+  pointer-events: none;
 }
 
 .searchInput {
   width: 100%;
-  padding: 0.5rem 1rem 0.5rem 2.25rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  background: #f9fafb;
-  color: #101828;
+  height: 2.5rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 0.625rem;
+  padding: 0 0.875rem 0 2.5rem;
   font-size: 0.875rem;
+  color: #101828;
+  background: #f9fafb;
 }
 
 .searchInput::placeholder {
-  color: #9ca3af;
+  color: #98a2b3;
 }
 
 .searchInput:focus {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(16, 24, 40, 0.2);
+  border-color: #98a2b3;
+  background: #ffffff;
+}
+
+.logoText {
+  display: none;
 }
 
 .actions {
@@ -218,6 +221,10 @@
 }
 
 @media (min-width: 768px) {
+  .searchWrap {
+    display: block;
+  }
+
   .profileMeta {
     display: flex;
   }

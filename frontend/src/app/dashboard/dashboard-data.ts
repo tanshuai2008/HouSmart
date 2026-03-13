@@ -10,6 +10,18 @@ import transitScoreIcon from "@/assets/dashboard/icons/TransitScoreIcon.svg";
 import noiseScoreIcon from "@/assets/dashboard/icons/NoiseScoreIcon.svg";
 import redNoiseIcon from "@/assets/dashboard/icons/RedNoiseIcon.svg";
 
+export interface PriceTrendDataPoint {
+    month: string;
+    property: number;
+    market: number;
+}
+
+export interface RevenueExpensesDataPoint {
+    month: string;
+    revenue: number;
+    expenses: number;
+}
+
 export const dashboardData = {
     property: {
         address: "1248 Highland Avenue",
@@ -112,7 +124,7 @@ export const dashboardData = {
         { month: "2023", property: 99.0, market: 0 },
         { month: "H2 23", property: 98.6, market: 0 },
         { month: "2024", property: 99.4, market: 0 },
-    ],
+    ] satisfies PriceTrendDataPoint[],
     revenueExpenses: [
         { month: "2021", revenue: 850000, expenses: 0 },
         { month: "H2 21", revenue: 920000, expenses: 0 },
@@ -121,35 +133,40 @@ export const dashboardData = {
         { month: "2023", revenue: 980000, expenses: 0 },
         { month: "H2 23", revenue: 995000, expenses: 0 },
         { month: "2024", revenue: 1025000, expenses: 0 },
-    ],
+    ] satisfies RevenueExpensesDataPoint[],
     locationScores: [
         {
             label: "Safety Score",
-            score: 4,
+            filledBars: 3,
+            tone: "positive" as const,
             icon: safetyScoreIcon,
             tooltipText: "Composite index based on local crime rates, street lighting coverage, and pedestrian safety metrics.",
         },
         {
             label: "Schools",
-            score: 4,
+            filledBars: 3,
+            tone: "positive" as const,
             icon: schoolScoreIcon,
             tooltipText: "Aggregated rating based on test scores, student-teacher ratios, and funding of nearby public schools.",
         },
         {
             label: "Lifestyle Amenities",
-            score: 4,
+            filledBars: 3,
+            tone: "positive" as const,
             icon: amenityScoreIcon,
             tooltipText: "Density and quality of cafes, restaurants, gyms, parks, and shopping centers within walking distance.",
         },
         {
             label: "Transit Access",
-            score: 3,
+            filledBars: 2,
+            tone: "warning" as const,
             icon: transitScoreIcon,
             tooltipText: "Availability, frequency, and proximity of public transportation options like bus stops and train stations.",
         },
         {
             label: "Noise Levels",
-            score: 2,
+            filledBars: 3,
+            tone: "negative" as const,
             icon: noiseScoreIcon,
             tooltipText: "Decibel measurements derived from traffic patterns, flight paths, and nearby construction activity.",
         },
@@ -159,8 +176,6 @@ export const dashboardData = {
             id: "1",
             address: "1422 Highland Dr",
             neighborhood: "Queen Anne, Seattle W",
-            propertyValue: "$1,350,000",
-            estPayment: "$7,100/mo",
             listedRent: "$7,050",
             rentPerSqft: "$3.15 / sq ft",
             matchPercent: 94,
@@ -168,13 +183,12 @@ export const dashboardData = {
             sqft: "2,240 sq ft",
             listedDate: "Oct 12, 2025",
             daysAgo: 8,
+            status: "Active" as const,
         },
         {
             id: "2",
             address: "1520 6th Ave W",
             neighborhood: "West Queen Anne, Sea",
-            propertyValue: "$1,120,000",
-            estPayment: "$5,900/mo",
             listedRent: "$5,150",
             rentPerSqft: "$2.95 / sq ft",
             matchPercent: 88,
@@ -182,13 +196,12 @@ export const dashboardData = {
             sqft: "1,750 sq ft",
             listedDate: "Sep 28, 2025",
             daysAgo: 22,
+            status: "Active" as const,
         },
         {
             id: "3",
             address: "1308 Bigelow Ave N",
             neighborhood: "East Queen Anne, Sea",
-            propertyValue: "$1,450,000",
-            estPayment: "$7,600/mo",
             listedRent: "$8,900",
             rentPerSqft: "$3.42 / sq ft",
             matchPercent: 72,
@@ -196,6 +209,7 @@ export const dashboardData = {
             sqft: "2,600 sq ft",
             listedDate: "Aug 15, 2025",
             daysAgo: 65,
+            status: "Inactive" as const,
         },
     ],
 };

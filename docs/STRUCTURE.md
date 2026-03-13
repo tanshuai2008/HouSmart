@@ -20,7 +20,7 @@
 ## Offline/ops scripts
 - `backend/app/scripts/apply_migrations.py`: applies SQL migrations.
 - `backend/app/scripts/ingest_redfin.py`: loads `redfin_median_prices`.
-- `backend/app/scripts/pipelines/schools/*`: school master ingestion and score computation.
+- `backend/app/scripts/pipelines/*`: school master ingestion and score computation.
 - `backend/app/scripts/boundaries/*`: school boundary import/inspection utilities.
 
 ## Key DB tables touched at runtime

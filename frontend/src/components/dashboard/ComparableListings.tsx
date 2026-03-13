@@ -7,8 +7,6 @@ interface ComparableListingsProps {
         id: string;
         address: string;
         neighborhood: string;
-        propertyValue: string;
-        estPayment: string;
         listedRent: string;
         rentPerSqft: string;
         matchPercent: number;
@@ -16,6 +14,7 @@ interface ComparableListingsProps {
         sqft: string;
         listedDate: string;
         daysAgo: number;
+        status: "Active" | "Inactive";
     }>;
     radius?: string;
 }
@@ -36,18 +35,26 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
 
             {/* Table */}
             <div className="overflow-x-auto">
-                <table className="w-full">
+                <table className="w-full table-fixed">
+                    <colgroup>
+                        <col className="w-[24%]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[15%]" />
+                        <col className="w-[17%]" />
+                        <col className="w-[18%]" />
+                        <col className="w-[12%]" />
+                    </colgroup>
                     <thead>
                         <tr className="border-b border-[#F3F4F6]">
-                            <th className="text-left text-[10px] font-semibold text-[#9CA3AF] tracking-[0.06em] uppercase px-5 py-3 min-w-[150px]">
+                            <th className="text-left text-[10px] font-semibold text-[#9CA3AF] tracking-[0.06em] uppercase px-5 py-3 min-w-[190px]">
                                 Property<br />Address
                             </th>
                             {[
-                                "Property Value",
                                 "Listed Rent",
                                 "Similarity",
                                 "Details",
                                 "Listed Date",
+                                "Status",
                             ].map((col) => (
                                 <th
                                     key={col}
@@ -67,17 +74,11 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
                                     className="border-b border-[#F3F4F6] last:border-0 hover:bg-[#FAFAFA] transition"
                                 >
                                     {/* Address */}
-                                    <td className="px-5 py-4 min-w-[150px]">
+                                    <td className="px-5 py-4 min-w-[190px]">
                                         <p className="text-[12px] font-bold text-[#101828]">{listing.address}</p>
-                                        <p className="text-[11px] text-[#9CA3AF] truncate max-w-[150px] mt-0.5">
+                                        <p className="text-[11px] text-[#9CA3AF] truncate max-w-[220px] mt-0.5">
                                             {listing.neighborhood}
                                         </p>
-                                    </td>
-
-                                    {/* Property Value */}
-                                    <td className="px-5 py-4 whitespace-nowrap">
-                                        <p className="text-[12px] font-bold text-[#101828]">{listing.propertyValue}</p>
-                                        <p className="text-[11px] text-[#9CA3AF] mt-0.5">Est. Payment {listing.estPayment}</p>
                                     </td>
 
                                     {/* Listed Rent */}
@@ -101,6 +102,19 @@ export const ComparableListings: React.FC<ComparableListingsProps> = ({
                                     <td className="px-5 py-4 whitespace-nowrap">
                                         <p className="text-[12px] font-bold text-[#101828]">{listing.listedDate}</p>
                                         <p className="text-[11px] text-[#9CA3AF] mt-0.5">{listing.daysAgo} days ago</p>
+                                    </td>
+
+                                    {/* Status */}
+                                    <td className="px-5 py-4 whitespace-nowrap">
+                                        <span
+                                            className={`inline-flex items-center rounded-full px-3 py-1 text-[12px] font-semibold ${
+                                                listing.status === "Active"
+                                                    ? "bg-[#ECFDF3] text-[#027A48]"
+                                                    : "bg-[#F2F4F7] text-[#475467]"
+                                            }`}
+                                        >
+                                            {listing.status}
+                                        </span>
                                     </td>
                                 </tr>
                             );

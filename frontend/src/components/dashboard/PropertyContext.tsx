@@ -10,11 +10,11 @@ import calendarIcon from "@/assets/dashboard/icons/calendar.svg";
 interface PropertyContextProps {
     property: {
         address: string;
-        neighborhood: string;
-        beds: number;
-        baths: number;
-        sqft: string;
-        yearBuilt: number;
+        neighborhood?: string;
+        beds?: number | string | null;
+        baths?: number | string | null;
+        sqft?: string | number | null;
+        yearBuilt?: number | string | null;
     };
 }
 
@@ -26,21 +26,26 @@ const SpecItem: React.FC<{ icon: StaticImageData; label: string }> = ({ icon, la
 );
 
 export const PropertyContext: React.FC<PropertyContextProps> = ({ property }) => {
+    const bedsLabel = property.beds === null || property.beds === undefined || property.beds === "" ? "-" : property.beds;
+    const bathsLabel = property.baths === null || property.baths === undefined || property.baths === "" ? "-" : property.baths;
+    const sqftLabel = property.sqft === null || property.sqft === undefined || property.sqft === "" ? "-" : property.sqft;
+    const yearBuiltLabel = property.yearBuilt === null || property.yearBuilt === undefined || property.yearBuilt === "" ? "-" : property.yearBuilt;
+
     return (
         <div className="pb-5">
             {/* Details */}
             <div className="px-5 pt-5 pb-4 flex flex-col gap-0.5">
                 <h3 className="text-[17px] font-bold text-[#101828] leading-tight">{property.address}</h3>
-                <p className="text-[13px] text-[#6B7280]">{property.neighborhood}</p>
+                {property.neighborhood ? <p className="text-[13px] text-[#6B7280]">{property.neighborhood}</p> : null}
             </div>
 
             <hr className="border-t border-[#F3F4F6] mx-5" />
 
             <div className="px-5 pt-4 flex items-center flex-wrap gap-x-4 gap-y-2">
-                <SpecItem icon={bedIcon} label={`${property.beds} bd`} />
-                <SpecItem icon={bathIcon} label={`${property.baths} ba`} />
-                <SpecItem icon={expandIcon} label={`${property.sqft} sqft`} />
-                <SpecItem icon={calendarIcon} label={`${property.yearBuilt}`} />
+                <SpecItem icon={bedIcon} label={`${bedsLabel} bd`} />
+                <SpecItem icon={bathIcon} label={`${bathsLabel} ba`} />
+                <SpecItem icon={expandIcon} label={`${sqftLabel} sqft`} />
+                <SpecItem icon={calendarIcon} label={`${yearBuiltLabel}`} />
             </div>
         </div>
     );

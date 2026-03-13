@@ -7,6 +7,7 @@ from app.api.schemas.analysis import (
     DashboardPropertyResponse,
     PropertyAnalyzeRequest,
     PropertyAnalyzeResponse,
+    RecentSearchItem,
 )
 from app.services.analysis_orchestrator import analyze_property_for_user
 from app.services.analysis_repository import AnalysisRepository
@@ -50,3 +51,13 @@ def get_dashboard_property(property_id: UUID, user_id: UUID = Query(...)):
         property_id=str(property_id),
     )
     return DashboardPropertyResponse(**payload)
+
+
+@router.get("/property/recent-searches", response_model=list[RecentSearchItem])
+def get_recent_searches(user_id: UUID = Query(...), limit: int = Query(default=3, ge=1, le=3)):
+    rows = AnalysisRepository.list_recent_user_properties(user_id=str(user_id), limit=limit)
+    return [
+        RecentSearchItem(property_id=row["property_id"], address=row["address"])
+        for row in rows
+        if row.get("property_id") and row.get("address")
+    ]

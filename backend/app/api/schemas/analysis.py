@@ -29,3 +29,8 @@ class DashboardPropertyResponse(BaseModel):
     facts: Optional[dict[str, Any]] = None
     scores: Optional[dict[str, Any]] = None
     comparables: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class RecentSearchItem(BaseModel):
+    property_id: UUID
+    address: str

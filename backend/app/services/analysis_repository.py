@@ -43,6 +43,29 @@ class AnalysisRepository:
         return status in {"active", "for_rent", "for rent"}
 
     @staticmethod
+    def _normalized_listing_status(value: Any) -> str:
+        return "active" if AnalysisRepository._is_active_status(value) else "inactive"
+
+    @staticmethod
+    def _days_on_market(*, listed_date: Any, explicit_days: Any) -> Optional[int]:
+        try:
+            if explicit_days is not None:
+                return max(int(explicit_days), 0)
+        except (TypeError, ValueError):
+            pass
+
+        date_text = AnalysisRepository._to_date_only(listed_date)
+        if not date_text:
+            return None
+
+        try:
+            listed = datetime.strptime(date_text, "%Y-%m-%d").date()
+        except ValueError:
+            return None
+
+        return max((datetime.now(timezone.utc).date() - listed).days, 0)
+
+    @staticmethod
     def upsert_user_property(
         *,
         user_id: str,
@@ -130,6 +153,18 @@ class AnalysisRepository:
         return rows[0] if rows else None
 
     @staticmethod
+    def list_recent_user_properties(*, user_id: str, limit: int = 3) -> list[dict[str, Any]]:
+        response = (
+            supabase.table("user_properties")
+            .select("property_id,address")
+            .eq("user_id", user_id)
+            .order("updated_at", desc=True)
+            .limit(limit)
+            .execute()
+        )
+        return response.data or []
+
+    @staticmethod
     def create_run(*, property_id: str) -> dict[str, Any]:
         response = (
             supabase.table("property_analysis_runs")
@@ -202,13 +237,14 @@ class AnalysisRepository:
             ranked,
             key=lambda comp: not AnalysisRepository._is_active_status(comp.get("status")),
         )
-        top_three = ranked[:3]
+        top_five = ranked[:5]
 
         rows = []
-        for comp in top_three:
+        for comp in top_five:
             correlation_score = AnalysisRepository._normalize_correlation_percentage(
                 comp.get("correlation_score") or comp.get("correlationScore") or comp.get("correlation")
             )
+            listed_date = AnalysisRepository._to_date_only(comp.get("listed_date") or comp.get("listedDate"))
             rows.append({
                 "property_id": property_id,
                 "run_id": run_id,
@@ -218,10 +254,14 @@ class AnalysisRepository:
                 "bathrooms": comp.get("bathrooms"),
                 "square_footage": comp.get("square_footage") or comp.get("squareFootage"),
                 "year_built": comp.get("year_built") or comp.get("yearBuilt"),
-                "status": comp.get("status"),
+                "status": AnalysisRepository._normalized_listing_status(comp.get("status")),
                 "rental_price": comp.get("price") or comp.get("rent") or comp.get("rental_price"),
                 "listed_type": comp.get("listed_type") or comp.get("listingType"),
-                "listed_date": AnalysisRepository._to_date_only(comp.get("listed_date") or comp.get("listedDate")),
+                "listed_date": listed_date,
+                "days_on_market": AnalysisRepository._days_on_market(
+                    listed_date=listed_date,
+                    explicit_days=comp.get("days_on_market") or comp.get("daysOnMarket"),
+                ),
                 "distance": comp.get("distance"),
                 "correlation_score": correlation_score,
             })

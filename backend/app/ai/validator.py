@@ -25,13 +25,19 @@ def validate_ai_output(ai_output: dict, deterministic_payload: dict) -> dict:
     warnings: list[str] = []
     ai_text = _extract_ai_text(ai_output)
 
+    # Hard errors (Numerical hallucinations or bad confidence values)
     errors.extend(_check_numerical_integrity(ai_text, deterministic_payload))
     errors.extend(_check_confidence_pct(ai_output))
+    
+    # Soft warnings (Subjective language, missing disclaimers, or verdict disagreement)
     warnings.extend(_check_forbidden_words(ai_text))
-    errors.extend(_check_missing_data_disclaimers(ai_text, deterministic_payload))
-    errors.extend(_check_verdict_consistency(ai_output, deterministic_payload))
+    warnings.extend(_check_missing_data_disclaimers(ai_text, deterministic_payload))
+    
+    # Consistency is now a warning so the verdict explanation still shows up
+    warnings.extend(_check_verdict_consistency(ai_output, deterministic_payload))
 
-    admin_review_required = len(errors) > 0
+    # Flag for review if there are ANY issues, but don't crash the JSON return
+    admin_review_required = len(errors) > 0 or len(warnings) > 0
 
     if errors:
         logger.warning("Validation failed for evaluation_id=%s — %d error(s): %s",
@@ -46,8 +52,8 @@ def validate_ai_output(ai_output: dict, deterministic_payload: dict) -> dict:
 
     if warnings:
         ai_output["subjective_language_warning"] = (
-            "Note: This AI summary may contain subjective language. "
-            "Please refer to the raw data metrics above."
+            "Note: This AI summary may contain subjective language or verdict disagreements. "
+            "Please refer to the raw data metrics for final verification."
         )
 
     return ai_output
@@ -70,6 +76,7 @@ def _check_numerical_integrity(ai_text: str, payload: dict) -> list[str]:
     errors: list[str] = []
     ground_truth_floats: set[float] = set()
 
+    # Combine financial and neighborhood metrics
     for val in {**payload.get("financial_metrics", {}), **payload.get("neighborhood_metrics", {})}.values():
         if val and isinstance(val, str) and "%" in val:
             match = re.search(r"(\d+\.?\d*)", val)
@@ -86,6 +93,7 @@ def _check_numerical_integrity(ai_text: str, payload: dict) -> list[str]:
             try: ground_truth_floats.add(float(val))
             except (TypeError, ValueError): pass
 
+    # Check AI mentioned percentages against ground truth
     for pct_str in re.findall(r"(\d+\.?\d*)%", ai_text):
         try:
             pct_val = float(pct_str)
@@ -99,13 +107,15 @@ def _check_numerical_integrity(ai_text: str, payload: dict) -> list[str]:
 
 def _check_forbidden_words(ai_text: str) -> list[str]:
     lower = ai_text.lower()
-    return [f"Subjective/forbidden word found in AI output: '{w}'" for w in FORBIDDEN_WORDS if w in lower]
+    return [f"Subjective/forbidden word found: '{w}'" for w in FORBIDDEN_WORDS if w in lower]
 
 
 def _check_missing_data_disclaimers(ai_text: str, payload: dict) -> list[str]:
-    errors: list[str] = []
+    # We return these as warnings so the text is still visible
+    warnings: list[str] = []
     lower_text = ai_text.lower()
     null_vars: set[str] = set(payload.get("failed_variables", []))
+    
     for var, val in {**payload.get("location_metrics", {}), **payload.get("financial_metrics", {})}.items():
         if val is None:
             null_vars.add(var)
@@ -120,28 +130,33 @@ def _check_missing_data_disclaimers(ai_text: str, payload: dict) -> list[str]:
             window_end   = min(len(lower_text), kw_index + 150)
             window       = lower_text[window_start:window_end]
             if not any(term in window for term in DISCLAIMER_TERMS):
-                errors.append(
-                    f"AI referenced '{kw}' but variable '{var_name}' is null/failed. "
-                    f"AI must include a disclaimer near this mention."
+                warnings.append(
+                    f"AI referenced '{kw}' while '{var_name}' is null/failed without a disclaimer."
                 )
             break
-    return errors
+    return warnings
 
 
 def _check_verdict_consistency(ai_output: dict, payload: dict) -> list[str]:
-    errors: list[str] = []
+    """
+    Checks if the AI narrative contradicts the payload color.
+    Returns results as warnings to allow human review without breaking the UI.
+    """
+    warnings: list[str] = []
     verdict_color  = payload.get("verdict_color", "").upper()
     ai_explanation = (ai_output.get("verdict_explanation") or "").lower()
 
     if verdict_color == "RED":
         for s in ["strong investment", "excellent", "high return", "great opportunity"]:
             if s in ai_explanation:
-                errors.append(f"AI uses positive language ('{s}') but verdict is RED.")
+                warnings.append(f"Consistency Warning: AI used positive phrase ('{s}') for a RED payload.")
+                
     if verdict_color == "GREEN":
         for s in ["poor investment", "avoid", "significant risk", "not recommended"]:
             if s in ai_explanation:
-                errors.append(f"AI uses negative language ('{s}') but verdict is GREEN.")
-    return errors
+                warnings.append(f"Consistency Warning: AI used negative phrase ('{s}') for a GREEN payload.")
+                
+    return warnings
 
 
 def _extract_ai_text(ai_output: dict) -> str:

@@ -2,14 +2,10 @@ from __future__ import annotations
 
 import argparse
 import json
-import hashlib
 from math import exp
-from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
-from app.core.config import settings
-from app.core.supabase_client import supabase as default_supabase
-from app.data.crosswalk_leaic_data import CrimeCrosswalkError, resolve_crosswalk_for_fips
+from app.data.crosswalk_leaic_data import CrimeCrosswalkError,resolve_crosswalk_for_fips_list
 from app.models.crime import (
     CrimeCategoryBreakdown,
     CrimeSafetyScoreResult,
@@ -52,15 +48,12 @@ CRIME_OFFENSE_CODES: Dict[str, str] = {
 
 def fetch_ori_metadata(
     address: str,
-    *,
-    geocode_client: Optional[GeocodeClient] = None,
-    supabase_client=None,
 ) -> ORIMetadataResult:
     normalized_address = address.strip()
     if not normalized_address:
         raise CrimeSafetyServiceError("address is required")
 
-    geocoder = geocode_client or GeocodeClient()
+    geocoder = GeocodeClient()
 
     try:
         location = geocoder.geocode(normalized_address)
@@ -77,14 +70,13 @@ def fetch_ori_metadata(
         location.census_population,
     )
     try:
-        agency = resolve_crosswalk_for_fips(
+        agencies = resolve_crosswalk_for_fips_list(
             place_fips=location.place_fips,
             county_fips=location.county_fips,
-            supabase_client=supabase_client,
         )
     except CrimeCrosswalkError as exc:
         raise CrimeSafetyServiceError(str(exc)) from exc
-    if agency is None:
+    if not agencies:
         raise CrosswalkNotFoundError(
             "Unable to resolve ORI for the supplied address; ensure crosswalk data is populated"
         )
@@ -94,81 +86,65 @@ def fetch_ori_metadata(
         "place_fips": location.place_fips,
         "county_fips": location.county_fips,
         "census_population": location.census_population,
-        "agency": {
-            "ori": agency.ori,
-            "name": agency.agency_name,
-            "type": agency.agency_type,
-        },
-        "crime_offense_codes": dict(CRIME_OFFENSE_CODES),
-        "crime_weights": dict(CRIME_WEIGHTS),
+        "agencies": [
+            {
+                "ori": agency.ori,
+                "name": agency.agency_name,
+                "type": agency.agency_type,
+            }
+            for agency in agencies
+        ],
+        # "crime_offense_codes": dict(CRIME_OFFENSE_CODES),
+        # "crime_weights": dict(CRIME_WEIGHTS),
     }
 
 
 def compute_crime_safety_score(
     address: str,
     *,
-    from_month: str = "01-2025",
+    from_month: str = "01-2022",
     to_month: str = "12-2025",
-    geocode_client: Optional[GeocodeClient] = None,
-    fbi_client: Optional[FbiCrimeDataClient] = None,
-    supabase_client=None,
 ) -> CrimeSafetyScoreResult:
-    normalized_input_address = address.strip().lower()
-    cache_key = hashlib.sha256(
-        f"{normalized_input_address}|{from_month}|{to_month}".encode("utf-8")
-    ).hexdigest()
-    cache_client = supabase_client or default_supabase
-
-    cached = _get_cached_crime_score(
-        cache_client=cache_client,
-        cache_key=cache_key,
-    )
-    if cached:
-        return cached
-
-    metadata = fetch_ori_metadata(
-        address,
-        geocode_client=geocode_client,
-        supabase_client=supabase_client,
-    )
-    fbi = fbi_client or FbiCrimeDataClient()
-    agency_name = metadata["agency"]["name"]
+    
+    metadata = fetch_ori_metadata(address)
+    fbi = FbiCrimeDataClient()
+    agency_list = metadata["agencies"]
     breakdowns: List[CrimeCategoryBreakdown] = []
     skipped_offenses: List[str] = []
     months_analyzed = 0
     local_index = 0.0
     national_index = 0.0
+    for agency in agency_list:
+        for alias, offense_code in CRIME_OFFENSE_CODES.items():
+            weight = CRIME_WEIGHTS.get(alias, 1.0)
+            try:
+                payload = fbi.fetch_summarized_data(
+                    ori=agency["ori"],
+                    offense_code=offense_code,
+                    from_month=from_month,
+                    to_month=to_month,
+                )
+            except CrimeSafetyServiceError as exc:
+                logger.warning("FBI fetch failed for offense=%s: %s", alias, exc)
+                skipped_offenses.append(alias)
+                continue
 
-    for alias, offense_code in metadata["crime_offense_codes"].items():
-        weight = metadata["crime_weights"].get(alias, 1.0)
-        try:
-            payload = fbi.fetch_summarized_data(
-                ori=metadata["agency"]["ori"],
+            parsed = _build_rate_breakdown(
+                payload=payload,
+                alias=alias,
                 offense_code=offense_code,
-                from_month=from_month,
-                to_month=to_month,
+                weight=weight,
+                agency_name=agency['name'],
             )
-        except CrimeSafetyServiceError as exc:
-            logger.warning("FBI fetch failed for offense=%s: %s", alias, exc)
-            skipped_offenses.append(alias)
-            continue
-
-        parsed = _build_rate_breakdown(
-            payload=payload,
-            alias=alias,
-            offense_code=offense_code,
-            weight=weight,
-            agency_name=agency_name,
-        )
-        if not parsed:
-            logger.debug("Skipping offense=%s due to insufficient rate data", alias)
-            skipped_offenses.append(alias)
-            continue
-        breakdown, months = parsed
-        breakdowns.append(breakdown)
-        months_analyzed = max(months_analyzed, months)
-        local_index += breakdown["weighted_local_rate"]
-        national_index += breakdown["weighted_national_rate"]
+            if not parsed:
+                logger.debug("Skipping offense=%s due to insufficient rate data", alias)
+                skipped_offenses.append(alias)
+                continue
+            breakdown, months = parsed
+            breakdowns.append(breakdown)
+            months_analyzed = max(months_analyzed, months)
+            local_index += breakdown["weighted_local_rate"]
+            national_index += breakdown["weighted_national_rate"]
 
     if not breakdowns:
         message = "Crime data is not available for the supplied address"
@@ -177,32 +153,10 @@ def compute_crime_safety_score(
             message,
             ",".join(skipped_offenses) or "none",
         )
-        result = _empty_score_result(metadata, from_month, to_month, message)
-        _set_cached_crime_score(
-            cache_client=cache_client,
-            cache_key=cache_key,
-            normalized_input_address=normalized_input_address,
-            ori=metadata["agency"]["ori"],
-            from_month=from_month,
-            to_month=to_month,
-            payload=result,
-        )
-        return result
+        return _empty_score_result(metadata, from_month, to_month, message)
     if national_index <= 0:
         logger.warning("National offense data unavailable; returning empty score")
-        result = _empty_score_result(
-            metadata, from_month, to_month, "Crime data is not available for the supplied address"
-        )
-        _set_cached_crime_score(
-            cache_client=cache_client,
-            cache_key=cache_key,
-            normalized_input_address=normalized_input_address,
-            ori=metadata["agency"]["ori"],
-            from_month=from_month,
-            to_month=to_month,
-            payload=result,
-        )
-        return result
+        return _empty_score_result(metadata, from_month, to_month, "Crime data is not available for the supplied address")
 
     crime_ratio = local_index / national_index if national_index else 0.0
     safety_score = max(0.0, min(100.0, 100.0 * exp(-0.75 * crime_ratio)))
@@ -210,7 +164,7 @@ def compute_crime_safety_score(
 
     logger.info(
         "Crime score computed ori=%s local_index=%.2f national_index=%.2f ratio=%.2f score=%.2f valid_offenses=%s skipped_offenses=%s",
-        metadata["agency"]["ori"],
+        agency_list,
         local_index,
         national_index,
         crime_ratio,
@@ -219,9 +173,9 @@ def compute_crime_safety_score(
         len(skipped_offenses),
     )
 
-    result = {
+    return {
         "normalized_address": metadata["normalized_address"],
-        "agency": metadata["agency"],
+        "agency": agency_list,
         "date_range": {"from": from_month, "to": to_month},
         "months_analyzed": months_analyzed,
         "local_crime_index": local_index,
@@ -233,71 +187,6 @@ def compute_crime_safety_score(
         "data_available": True,
         "message": None,
     }
-    _set_cached_crime_score(
-        cache_client=cache_client,
-        cache_key=cache_key,
-        normalized_input_address=normalized_input_address,
-        ori=metadata["agency"]["ori"],
-        from_month=from_month,
-        to_month=to_month,
-        payload=result,
-    )
-    return result
-
-
-def _get_cached_crime_score(*, cache_client, cache_key: str) -> Optional[CrimeSafetyScoreResult]:
-    try:
-        min_epoch = int(datetime.now(timezone.utc).timestamp()) - int(settings.CRIME_CACHE_TTL_SECONDS)
-        response = (
-            cache_client.table("crime_score_cache")
-            .select("response_payload")
-            .eq("request_hash", cache_key)
-            .gt("updated_at_epoch", min_epoch)
-            .limit(1)
-            .execute()
-        )
-        rows = response.data or []
-        if not rows:
-            return None
-        payload = rows[0].get("response_payload")
-        if isinstance(payload, dict):
-            return payload  # type: ignore[return-value]
-        return None
-    except Exception as exc:
-        logger.debug("Crime cache lookup failed for key=%s: %s", cache_key, exc)
-        return None
-
-
-def _set_cached_crime_score(
-    *,
-    cache_client,
-    cache_key: str,
-    normalized_input_address: str,
-    ori: str,
-    from_month: str,
-    to_month: str,
-    payload: CrimeSafetyScoreResult,
-) -> None:
-    try:
-        now_epoch = int(datetime.now(timezone.utc).timestamp())
-        parsed_year = None
-        try:
-            parsed_year = int(str(to_month).split("-")[-1])
-        except Exception:
-            parsed_year = datetime.now(timezone.utc).year
-        cache_client.table("crime_score_cache").upsert(
-            {
-                "request_hash": cache_key,
-                "address": normalized_input_address,
-                "ori": ori,
-                "data_year": parsed_year,
-                "response_payload": payload,
-                "updated_at_epoch": now_epoch,
-            },
-            on_conflict="request_hash",
-        ).execute()
-    except Exception as exc:
-        logger.debug("Crime cache upsert failed for key=%s: %s", cache_key, exc)
 
 
 def _build_rate_breakdown(

@@ -41,7 +41,7 @@ Note:
 Crime score crosswalk requires data in `leaic_crosswalk`:
 
 ```bash
-python -m app.services.leaic_crosswalk_loader --tsv_path app/data/ICPSR_35158-V2/ICPSR_35158/DS0001/35158-0001-Data.tsv
+python -m app.services.leaic_crosswalk_loader --tsv_path app/data/35158-0001-Data.tsv
 ```
 
 Median price endpoint relies on `redfin_median_prices`:

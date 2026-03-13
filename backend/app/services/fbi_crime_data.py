@@ -15,18 +15,53 @@ logger = get_logger(__name__)
 
 
 class FbiCrimeDataClient:
-    def __init__(
-        self,
+        
+    def __init__(self,
         *,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         http_session: Optional[requests.Session] = None,
         timeout: float = 120.0,
     ) -> None:
+        
         self._api_key = api_key or os.getenv("FBI_API_KEY")
         self._base_url = base_url or os.getenv("FBI_API_BASE_URL", "https://api.usa.gov/crime/fbi/cde")
         self._http = http_session or requests.Session()
         self._timeout = timeout
+
+    def agency_has_data(self, ori: str, state_abbr: str) -> bool:
+        """Check if the given ORI is present in the FBI agency list for the state."""
+        endpoint = f"{self._base_url.rstrip('/')}/agency/byStateAbbr/{state_abbr.upper()}"
+        params = {"API_KEY": self._api_key}
+        try:
+            response = self._http.get(endpoint, params=params, timeout=self._timeout)
+            response.raise_for_status()
+            data = response.json()
+        except Exception as exc:
+            logger.warning(f"FBI agency list fetch failed for state={state_abbr}: {exc}")
+            return False
+        # Flatten all agency dicts in all counties
+        agencies = [agency for agencies in data.values() for agency in agencies if isinstance(agencies, list)]
+        return any(a.get("ori", "").upper() == ori.upper() for a in agencies)
+
+    def fetch_summarized_data_multi_ori(self, oris: list[str], offense_code: str, from_month: str, to_month: str, state_abbr: str) -> list[dict]:
+        """Fetch summarized crime data for all ORIs that have data available."""
+        results = []
+        for ori in oris:
+            if not self.agency_has_data(ori, state_abbr):
+                logger.info(f"ORI {ori} not found in FBI agency list for state {state_abbr}, skipping.")
+                continue
+            try:
+                payload = self.fetch_summarized_data(
+                    ori=ori,
+                    offense_code=offense_code,
+                    from_month=from_month,
+                    to_month=to_month,
+                )
+                results.append({"ori": ori, "payload": payload})
+            except CrimeSafetyServiceError as exc:
+                logger.warning(f"FBI fetch failed for ORI={ori} offense={offense_code}: {exc}")
+        return results
 
     def fetch_summarized_data(
         self,
@@ -48,7 +83,7 @@ class FbiCrimeDataClient:
             "to": to_month,
             "API_KEY": self._api_key,
         }
-        logger.debug(
+        logger.info(
             "Fetching FBI summarized data ori=%s offense=%s from=%s to=%s",
             ori,
             offense_code,
@@ -57,6 +92,8 @@ class FbiCrimeDataClient:
         )
         try:
             response = self._http.get(endpoint, params=params, timeout=self._timeout)
+            logger.info("FBI request URL: %s", response.url)
+            logger.info("FBI response JSON: %s", response.json())  # Debug: print the full URL being requested
             response.raise_for_status()
         except requests.RequestException as exc:
             raise CrimeSafetyServiceError(f"FBI summarized request failed: {exc}") from exc
@@ -90,5 +127,3 @@ if __name__ == "__main__":
         from_date="01-2025",
         to_date="12-2025",
     )
-
-

@@ -31,17 +31,14 @@ def load_crosswalk_from_tsv(
 ) -> Dict[str, int]:
     client = supabase_client or get_supabase()
     inserted = 0
-    skipped = 0
     batch: list[Dict[str, Optional[str]]] = []
 
     with open(tsv_path, "r", encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         for row in reader:
-            normalized = _normalize_row(row)
-            if not normalized:
-                skipped += 1
-                continue
-            batch.append(normalized)
+            # Insert every row, every column, no filtering or normalization
+            record = {k.lower(): (v.strip() if v is not None else None) for k, v in row.items()}            
+            batch.append(record)
             if len(batch) >= batch_size:
                 _flush_batch(batch, client)
                 inserted += len(batch)
@@ -50,8 +47,8 @@ def load_crosswalk_from_tsv(
             _flush_batch(batch, client)
             inserted += len(batch)
 
-    logger.info("Crosswalk load complete: inserted=%s, skipped=%s", inserted, skipped)
-    return {"inserted": inserted, "skipped": skipped}
+    logger.info("Crosswalk load complete: inserted=%s", inserted)
+    return {"inserted": inserted}
 
 
 def _flush_batch(batch: list[Dict[str, Optional[str]]], client: Client) -> None:
@@ -65,77 +62,6 @@ def _flush_batch(batch: list[Dict[str, Optional[str]]], client: Client) -> None:
     except Exception as exc:  # pragma: no cover
         logger.error("Supabase upsert failed: %s", exc)
         raise
-
-
-def _normalize_row(row: Dict[str, str]) -> Optional[Dict[str, Optional[str]]]:
-    ori = _clean_ori(row)
-    if not ori:
-        return None
-
-    agency_name = (row.get("NAME") or "").strip()
-    if not agency_name:
-        return None
-
-    subtype = (row.get("SUBTYPE1") or "").strip()
-    if subtype == CITY_SUBTYPE:
-        agency_type = "city"
-    elif subtype == COUNTY_SUBTYPE:
-        agency_type = "county"
-    else:
-        return None
-
-    place_fips = _clean_place_fips(row.get("FPLACE"))
-    county_fips = _clean_county_fips(row)
-    state_abbr = _clean_state(row)
-
-    return {
-        "ori": ori,
-        "agency_name": agency_name,
-        "agency_type": agency_type,
-        "place_fips": place_fips,
-        "county_fips": county_fips,
-        "state_abbr": state_abbr,
-    }
-
-
-def _clean_ori(row: Dict[str, str]) -> Optional[str]:
-    for key in ("ORI9", "ORI7"):
-        value = row.get(key)
-        if value and value not in SKIP_VALUES:
-            cleaned = value.strip().upper()
-            if cleaned:
-                return cleaned
-    return None
-
-
-def _clean_place_fips(value: Optional[str]) -> Optional[str]:
-    if not value or value in SKIP_VALUES:
-        return None
-    digits = value.strip().split(".")[0]
-    if not digits or digits.startswith("99"):
-        return None
-    return digits.zfill(5)
-
-
-def _clean_county_fips(row: Dict[str, str]) -> Optional[str]:
-    composite = row.get("FIPS")
-    if composite and composite not in SKIP_VALUES:
-        return composite.strip().zfill(5)
-    state = row.get("FIPS_ST")
-    county = row.get("FIPS_COUNTY")
-    if state and county and state not in SKIP_VALUES and county not in SKIP_VALUES:
-        return state.strip().zfill(2) + county.strip().zfill(3)
-    return None
-
-
-def _clean_state(row: Dict[str, str]) -> Optional[str]:
-    state = row.get("ADDRESS_STATE") or row.get("STATENAME")
-    if not state or state in SKIP_VALUES:
-        return None
-    cleaned = state.strip().upper()
-    if len(cleaned) == 2:
-        return cleaned
-    return cleaned[:2]
 
 
 def main() -> None:
@@ -153,8 +79,7 @@ def main() -> None:
         logger.error("Crosswalk load failed: %s", exc)
         raise
 
-    print(f"Inserted/updated rows: {stats['inserted']}")
-    print(f"Skipped rows: {stats['skipped']}")
+    print(f"Inserted/updated rows: {stats}")
 
 
 if __name__ == "__main__":

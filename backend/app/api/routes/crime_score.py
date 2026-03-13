@@ -41,7 +41,7 @@ class CrimeBreakdownModel(BaseModel):
 
 class CrimeScoreResponse(BaseModel):
     normalized_address: str
-    agency: AgencyModel
+    agency: List[AgencyModel]
     date_range: Dict[str, str]
     months_analyzed: int
     local_crime_index: float
@@ -85,9 +85,7 @@ def resolve_crime_score(payload: CrimeScoreRequest) -> CrimeScoreResponse:
     """
     try:
         result = compute_crime_safety_score(
-            payload.address,
-            geocode_client=_geocode_client,
-            fbi_client=_fbi_client,
+            payload.address
         )
     except CrimeSafetyServiceError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc

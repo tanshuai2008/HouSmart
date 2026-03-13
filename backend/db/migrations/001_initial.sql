@@ -89,16 +89,56 @@ create table if not exists rent_estimate_cache (
 );
 
 create table if not exists leaic_crosswalk (
-    ori text primary key,
-    agency_name text not null,
-    agency_type text not null check (agency_type in ('city', 'county')),
-    place_fips text,
-    county_fips text,
-    state_abbr text,
-    updated_at timestamptz not null default now()
+    FSTATE text,
+    FCOUNTY text,
+    FPLACE text,
+    FIPS_ST text,
+    FIPS_COUNTY text,
+    FIPS text,
+    ORI9 text,
+    ORI7 text,
+    NAME text,
+    UA text,
+    STATENAME text,
+    COUNTYNAME text,
+    UANAME text,
+    PARTOF text,
+    AGCYTYPE text,
+    SUBTYPE1 text,
+    SUBTYPE2 text,
+    GOVID text,
+    LG_NAME text,
+    ADDRESS_NAME text,
+    ADDRESS_STR1 text,
+    ADDRESS_STR2 text,
+    ADDRESS_CITY text,
+    ADDRESS_STATE text,
+    ADDRESS_ZIP text,
+    REPORT_FLAG text,
+    CSLLEA08_ID text,
+    LEMAS_ID text,
+    U_STATENO text,
+    U_CNTY text,
+    U_POPGRP text,
+    U_TPOP text,
+    LG_POPULATION text,
+    CSLLEA_SUB text,
+    COMMENT text,
+    INTPTLAT text,
+    INTPTLONG text,
+    CONGDIST1 text,
+    CONGDIST2_18 text,
+    DISTNAME text,
+    SOURCE_CSLLEA2008 text,
+    SOURCE_UCR2010 text,
+    SOURCE_UCR2011 text,
+    SOURCE_UCR2012 text,
+    SOURCE_NCIC2012 text,
+    SOURCE_VENDOR text
 );
-create index if not exists idx_leaic_place_type on leaic_crosswalk (place_fips, agency_type);
-create index if not exists idx_leaic_county_type on leaic_crosswalk (county_fips, agency_type);
+create index if not exists idx_leaic_fipsplace on leaic_crosswalk (FPLACE);
+create index if not exists idx_leaic_zip on leaic_crosswalk (ADDRESS_ZIP);
+create index if not exists idx_leaic_citystate on leaic_crosswalk (ADDRESS_CITY, ADDRESS_STATE);
 
 create table if not exists osm_poi_cache (
     id bigserial primary key,

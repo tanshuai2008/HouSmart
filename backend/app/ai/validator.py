@@ -36,8 +36,8 @@ def validate_ai_output(ai_output: dict, deterministic_payload: dict) -> dict:
     # Consistency is now a warning so the verdict explanation still shows up
     warnings.extend(_check_verdict_consistency(ai_output, deterministic_payload))
 
-    # Flag for review if there are ANY issues, but don't crash the JSON return
-    admin_review_required = len(errors) > 0 or len(warnings) > 0
+    # Flag for review ONLY if there are HARD errors. Warnings pass through to UI.
+    admin_review_required = len(errors) > 0
 
     if errors:
         logger.warning("Validation failed for evaluation_id=%s — %d error(s): %s",
@@ -143,8 +143,8 @@ def _check_verdict_consistency(ai_output: dict, payload: dict) -> list[str]:
     Returns results as warnings to allow human review without breaking the UI.
     """
     warnings: list[str] = []
-    verdict_color  = payload.get("verdict_color", "").upper()
-    ai_explanation = (ai_output.get("verdict_explanation") or "").lower()
+    verdict_color  = str(payload.get("verdict_color") or "").upper()
+    ai_explanation = str(ai_output.get("verdict_explanation") or "").lower()
 
     if verdict_color == "RED":
         for s in ["strong investment", "excellent", "high return", "great opportunity"]:

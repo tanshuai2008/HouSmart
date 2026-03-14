@@ -9,7 +9,7 @@ import {
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import type { DotProps } from "recharts";
+import type { HorizontalCoordinatesGenerator } from "recharts/types/cartesian/CartesianGrid";
 import type { PriceTrendDataPoint } from "@/app/dashboard/dashboard-data";
 
 interface PriceTrendChartProps {
@@ -43,13 +43,11 @@ const CustomTooltip = ({
 };
 
 export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
-    const renderDot = ({ cx, cy }: DotProps) => {
-        if (typeof cx !== "number" || typeof cy !== "number") return null;
-        return <circle cx={cx} cy={cy} r={4} stroke="#3B82F6" strokeWidth={2} fill="white" />;
-    };
-
-    const horizontalCoordinatesGenerator = ({ yAxis }: { yAxis?: { ticks?: Array<{ coordinate: number }> } }) =>
-        yAxis?.ticks?.map((tick) => tick.coordinate) ?? [];
+    const horizontalCoordinatesGenerator: HorizontalCoordinatesGenerator = ({ yAxis }) =>
+        yAxis?.ticks?.flatMap((tick) => {
+            const candidate = typeof tick === "object" && tick !== null ? (tick as { coordinate?: unknown }) : null;
+            return typeof candidate?.coordinate === "number" ? [candidate.coordinate] : [];
+        }) ?? [];
 
     return (
         <ResponsiveContainer width="100%" height={213}>
@@ -87,7 +85,7 @@ export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
                     name="Sale-to-List"
                     stroke="#3B82F6"
                     strokeWidth={2}
-                    dot={renderDot}
+                    dot={{ r: 4, stroke: "#3B82F6", strokeWidth: 2, fill: "white" }}
                     activeDot={{ r: 5, fill: "#FFFFFF", stroke: "#3B82F6", strokeWidth: 2 }}
                 />
             </LineChart>

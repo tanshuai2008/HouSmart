@@ -38,6 +38,7 @@ export default function AnalysisProcessingView() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { user } = useAuth();
+    const userId = user?.id;
     const runId = searchParams.get("run_id");
     const propertyId = searchParams.get("property_id");
     const address = searchParams.get("address") ?? "1248 Highland Avenue, Seattle WA";
@@ -67,7 +68,7 @@ export default function AnalysisProcessingView() {
         let cancelled = false;
         const poll = async () => {
             try {
-                const status = await getAnalysisRunStatus(runId, user?.id);
+                const status = await getAnalysisRunStatus(runId, userId);
                 if (cancelled) {
                     return;
                 }
@@ -98,20 +99,20 @@ export default function AnalysisProcessingView() {
         return () => {
             cancelled = true;
         };
-    }, [runId, propertyId, router, user?.id]);
+    }, [propertyId, router, runId, userId]);
 
     useEffect(() => {
         if (runId) {
             return;
         }
-        if (!address.trim() || !user?.id) {
+        if (!address.trim() || !userId) {
             return;
         }
 
         let cancelled = false;
         const start = async () => {
             try {
-                const result = await startPropertyAnalysis(user.id, address);
+                const result = await startPropertyAnalysis(userId, address);
                 if (cancelled) {
                     return;
                 }
@@ -130,7 +131,7 @@ export default function AnalysisProcessingView() {
         return () => {
             cancelled = true;
         };
-    }, [address, router, runId, user?.id]);
+    }, [address, router, runId, userId]);
 
     useEffect(() => {
         // Change sub-message occasionally

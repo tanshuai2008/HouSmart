@@ -5,7 +5,9 @@ import { ScoreBar } from "@/components/ui/ScoreBar";
 
 declare global {
     interface Window {
-        google?: unknown;
+        google?: {
+            maps?: unknown;
+        };
     }
 }
 

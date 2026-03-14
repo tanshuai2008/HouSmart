@@ -4,16 +4,28 @@ import {
     CartesianGrid,
     LineChart,
     Line,
+    ReferenceLine,
     XAxis,
     YAxis,
     Tooltip,
     ResponsiveContainer,
 } from "recharts";
-import type { DotProps } from "recharts";
-import type { PriceTrendDataPoint } from "@/app/dashboard/dashboard-data";
+import type { PriceTrendDataPoint } from "@/types/marketTrends";
 
 interface PriceTrendChartProps {
     data: PriceTrendDataPoint[];
+}
+
+function formatMonthLabel(value: string): string {
+    const match = /^(\d{4})-(\d{2})$/.exec(value);
+    if (!match) {
+        return value;
+    }
+
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const date = new Date(year, monthIndex, 1);
+    return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
 }
 
 const CustomTooltip = ({
@@ -43,51 +55,61 @@ const CustomTooltip = ({
 };
 
 export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
-    const renderDot = ({ cx, cy }: DotProps) => {
-        if (typeof cx !== "number" || typeof cy !== "number") return null;
-        return <circle cx={cx} cy={cy} r={4} stroke="#3B82F6" strokeWidth={2} fill="white" />;
-    };
+    const values = (data || [])
+        .map((point) => (typeof point?.property === "number" ? point.property : Number(point?.property)))
+        .filter((value) => Number.isFinite(value)) as number[];
 
-    const horizontalCoordinatesGenerator = ({ yAxis }: { yAxis?: { ticks?: Array<{ coordinate: number }> } }) =>
-        yAxis?.ticks?.map((tick) => tick.coordinate) ?? [];
+    const defaultMin = 97.5;
+    const defaultMax = 102.5;
+    const minVal = values.length ? Math.min(...values) : defaultMin;
+    const maxVal = values.length ? Math.max(...values) : defaultMax;
+    const range = Math.max(0.5, maxVal - minVal);
+    const pad = values.length ? Math.max(0.4, range * 0.15) : 0;
+    const domainMin = Math.floor((minVal - pad) * 2) / 2;
+    const domainMax = Math.ceil((maxVal + pad) * 2) / 2;
+    const step = Math.max(0.5, Math.round(((domainMax - domainMin) / 4) * 2) / 2);
+    const ticks: number[] = [];
+    for (let tick = domainMin; tick <= domainMax + 0.001; tick += step) {
+        ticks.push(Number(tick.toFixed(1)));
+    }
 
     return (
-        <ResponsiveContainer width="100%" height={213}>
-            <LineChart data={data} margin={{ top: 2, right: 6, left: 0, bottom: 16 }}>
-                <CartesianGrid
-                    vertical={false}
-                    stroke="#E5E7EB"
-                    strokeDasharray="3 3"
-                    horizontalCoordinatesGenerator={horizontalCoordinatesGenerator}
-                />
+        <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={data} margin={{ top: 2, right: 6, left: 0, bottom: 10 }}>
+                <CartesianGrid vertical={false} stroke="#E5E7EB" strokeDasharray="3 3" />
                 <XAxis
                     dataKey="month"
-                    tick={{ fontSize: 11, fill: "#667085", fontWeight: 400 }}
+                    tickFormatter={formatMonthLabel}
+                    tick={{ fontSize: 8, fill: "#667085", fontWeight: 400 }}
                     axisLine={false}
                     tickLine={false}
-                    dy={8}
-                    tickMargin={8}
-                    height={28}
+                    angle={-90}
+                    textAnchor="end"
+                    dy={12}
+                    tickMargin={2}
+                    height={40}
                     padding={{ left: 10, right: 10 }}
+                    interval={0}
                 />
                 <YAxis
                     tickFormatter={(v: number) => `${v.toFixed(1)}%`}
                     tick={{ fontSize: 11, fill: "#667085", fontWeight: 400 }}
                     axisLine={false}
                     tickLine={false}
-                    domain={[97.3, 102.7]}
-                    ticks={[97.5, 100.0, 102.5]}
+                    domain={[domainMin, domainMax]}
+                    ticks={ticks}
                     width={56}
                     tickMargin={6}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#D0D5DD", strokeWidth: 1 }} />
+                <ReferenceLine y={100} stroke="#E5E7EB" strokeWidth={1} strokeDasharray="3 3" />
                 <Line
                     type="monotone"
                     dataKey="property"
                     name="Sale-to-List"
                     stroke="#3B82F6"
                     strokeWidth={2}
-                    dot={renderDot}
+                    dot={{ r: 4, stroke: "#3B82F6", strokeWidth: 2, fill: "white" }}
                     activeDot={{ r: 5, fill: "#FFFFFF", stroke: "#3B82F6", strokeWidth: 2 }}
                 />
             </LineChart>

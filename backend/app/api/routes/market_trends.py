@@ -1,5 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel
+
+from app.services.market_trends_service import MarketTrendsError, get_market_trends_for_property
 
 
 router = APIRouter(prefix="/api", tags=["Market Trends"])
@@ -23,34 +25,23 @@ class MarketTrendsResponse(BaseModel):
 
 
 @router.get("/market-trends", response_model=MarketTrendsResponse)
-def get_market_trends():
-    """Returns the chart time series used by the dashboard Market Trends graphs.
+def get_market_trends(
+    response: Response,
+    property_id: str = Query(..., min_length=1),
+    months: int = Query(36, ge=1, le=60),
+):
+    """Return dashboard market-trend series for a specific property."""
 
-    Note: This endpoint currently returns a stable default series (same shape as the
-    existing frontend mock data). It exists to let the UI charts fetch from the backend.
-    """
-
-    price_trend = [
-        {"month": "2021", "property": 98.4, "market": 0},
-        {"month": "H2 21", "property": 99.1, "market": 0},
-        {"month": "2022", "property": 101.4, "market": 0},
-        {"month": "H2 22", "property": 100.8, "market": 0},
-        {"month": "2023", "property": 99.0, "market": 0},
-        {"month": "H2 23", "property": 98.6, "market": 0},
-        {"month": "2024", "property": 99.4, "market": 0},
-    ]
-
-    median_sale_price = [
-        {"month": "2021", "revenue": 850000, "expenses": 0},
-        {"month": "H2 21", "revenue": 920000, "expenses": 0},
-        {"month": "2022", "revenue": 1050000, "expenses": 0},
-        {"month": "H2 22", "revenue": 1010000, "expenses": 0},
-        {"month": "2023", "revenue": 980000, "expenses": 0},
-        {"month": "H2 23", "revenue": 995000, "expenses": 0},
-        {"month": "2024", "revenue": 1025000, "expenses": 0},
-    ]
-
-    return {
-        "priceTrend": price_trend,
-        "revenueExpenses": median_sale_price,
-    }
+    try:
+        response.headers["Cache-Control"] = "no-store"
+        payload = get_market_trends_for_property(property_id=property_id, months=months)
+        return {
+            "priceTrend": payload.get("priceTrend", []),
+            "revenueExpenses": payload.get("revenueExpenses", []),
+        }
+    except MarketTrendsError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {exc}") from exc

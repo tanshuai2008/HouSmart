@@ -2,7 +2,7 @@
 import React from "react";
 import { PriceTrendChart } from "@/components/charts/PriceTrendChart";
 import { RevenueExpensesChart } from "@/components/charts/RevenueExpensesChart";
-import type { PriceTrendDataPoint, RevenueExpensesDataPoint } from "@/app/dashboard/dashboard-data";
+import type { PriceTrendDataPoint, RevenueExpensesDataPoint } from "@/types/marketTrends";
 
 interface MarketTrendsProps {
     priceTrend: PriceTrendDataPoint[];

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import AnalysisProcessingView from "@/components/analysis/AnalysisProcessingView";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { Metadata } from "next";
@@ -11,7 +12,9 @@ export default function AnalyzePage() {
     return (
         <div className="min-h-screen bg-white">
             <DashboardHeader />
-            <AnalysisProcessingView />
+            <Suspense fallback={<div className="px-4 pt-10 text-sm text-gray-500">Loading analysis...</div>}>
+                <AnalysisProcessingView />
+            </Suspense>
         </div>
     );
 }

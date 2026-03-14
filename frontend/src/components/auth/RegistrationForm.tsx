@@ -4,7 +4,8 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AuthError, signInWithPopup } from "firebase/auth";
+import { signInWithPopup } from "firebase/auth";
+import type { AuthError } from "firebase/auth";
 
 import { Button } from "../ui/Button";
 import { Divider } from "../ui/Divider";
@@ -30,8 +31,12 @@ export const RegistrationForm = () => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
 
+    const isFirebaseAuthError = (err: unknown): err is AuthError => {
+        return typeof err === "object" && err !== null && "code" in err;
+    };
+
     const getGoogleSignInError = (err: unknown) => {
-        if (err instanceof AuthError) {
+        if (isFirebaseAuthError(err)) {
             if (err.code === "auth/unauthorized-domain") {
                 return "Google sign-in is not enabled for this deployment domain yet. Add this site to Firebase Authentication -> Settings -> Authorized domains.";
             }

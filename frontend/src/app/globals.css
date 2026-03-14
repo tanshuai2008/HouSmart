@@ -1,8 +1,13 @@
 @import "tailwindcss";
 
+:root {
+  --font-inter: "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
 @layer base {
   body {
     @apply antialiased bg-[#F9FAFB] text-[#101828];
+    font-family: var(--font-inter);
   }
 }
 

@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
 import { AuthProvider } from "@/providers/auth-context";
 import logoIconV2 from "@/assets/icons/logo-icon-v2.svg";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-});
 
 export const metadata: Metadata = {
   title: "HouSmart",
@@ -26,10 +20,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="overflow-y-scroll" suppressHydrationWarning>
-      <body
-        className={`${inter.variable} font-sans antialiased`}
-        suppressHydrationWarning
-      >
+      <body className="font-sans antialiased" suppressHydrationWarning>
         <AuthProvider>{children}</AuthProvider>
       </body>
     </html>

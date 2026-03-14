@@ -3,10 +3,60 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from postgrest.exceptions import APIError
+
 from app.core.supabase_client import supabase
 
 
 class AnalysisRepository:
+    AI_SUMMARY_TABLE_NAMES = ("property_ai_summaries", "property_ai_summary")
+
+    @staticmethod
+    def _get_ai_summary(*, run_id: str, property_id: str, user_id: str) -> Optional[dict[str, Any]]:
+        for table_name in AnalysisRepository.AI_SUMMARY_TABLE_NAMES:
+            try:
+                ai_resp = (
+                    supabase.table(table_name)
+                    .select("*")
+                    .eq("run_id", run_id)
+                    .limit(1)
+                    .execute()
+                )
+                ai_rows = ai_resp.data or []
+                return ai_rows[0] if ai_rows else None
+            except APIError as exc:
+                if exc.code == "PGRST205":
+                    continue
+                if exc.code != "42703":
+                    raise
+
+            try:
+                ai_resp = (
+                    supabase.table(table_name)
+                    .select("*")
+                    .eq("property_id", property_id)
+                    .eq("user_id", user_id)
+                    .limit(1)
+                    .execute()
+                )
+                ai_rows = ai_resp.data or []
+                return ai_rows[0] if ai_rows else None
+            except APIError as exc:
+                if exc.code != "42703":
+                    raise
+
+            ai_resp = (
+                supabase.table(table_name)
+                .select("*")
+                .eq("property_id", property_id)
+                .limit(1)
+                .execute()
+            )
+            ai_rows = ai_resp.data or []
+            return ai_rows[0] if ai_rows else None
+
+        return None
+
     @staticmethod
     def _to_date_only(value: Any) -> Optional[str]:
         if value is None:
@@ -302,6 +352,105 @@ class AnalysisRepository:
         return rows[0] if rows else None
 
     @staticmethod
+    def get_ai_snapshot(*, user_id: str, property_id: str, run_id: str) -> dict[str, Any]:
+        """
+        Gathers property, facts, and onboarding data for the AI intelligence engine.
+        """
+        # 1. Property Info
+        prop_resp = (
+            supabase.table("user_properties")
+            .select("*")
+            .eq("property_id", property_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
+        prop = prop_resp.data or {}
+
+        # 2. Facts (mapped to variables)
+        facts_resp = (
+            supabase.table("property_facts")
+            .select("*")
+            .eq("run_id", run_id)
+            .maybe_single()
+            .execute()
+        )
+        facts: dict[str, Any] = facts_resp.data or {}
+
+        # 3. User Onboarding (Priority Ranking & Profile)
+        onboarding_resp = (
+            supabase.table("user_onboarding_answers")
+            .select("*")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        onboarding: dict[str, Any] = onboarding_resp.data or {}
+
+        # 4. Map facts to variables as expected by builder.py
+        variables = {}
+        var_mapping = {
+            "estimated_rent": ("rent", "RentCast"),
+            "crime_score": ("local_crime_index", "FBI Data"),
+            "school_score": ("total_schools", "School Data"),
+            "transit_score": ("rail_station_count", "Transit Data"),
+            "flood_risk_score": ("flood_risk_label", "FEMA"),
+            "amenity_score": ("bus_stop_count", "OSM"),
+            "noise_score": ("noise_index", "SoundMap"),
+            "median_income": ("median_income", "Census"),
+            "median_home_value": ("median_property_price", "Market Data"),
+            "vacancy_rate": ("rent_to_price", "Market Data")
+        }
+
+        for ai_var, (db_col, fallback_source) in var_mapping.items():
+            val = facts.get(db_col) if db_col in facts else prop.get(db_col)
+            variables[ai_var] = {
+                "status": "ready" if val is not None else "failed",
+                "value": val,
+                "source": facts.get("source") or fallback_source,
+                "fetched_at": facts.get("updated_at") or prop.get("updated_at")
+            }
+
+        # 5. Format priorities for AI builder
+        raw_priorities = onboarding.get("priorities_ranking_ques") or []
+        formatted_priorities = []
+        if isinstance(raw_priorities, list):
+            for idx, p in enumerate(raw_priorities):
+                if isinstance(p, str):
+                    formatted_priorities.append({"rank": idx + 1, "factor": p})
+                elif isinstance(p, dict):
+                    formatted_priorities.append(p)
+        
+        onboarding["priorities_ranking_ques"] = formatted_priorities
+
+        return {
+            "evaluation_id": run_id,
+            "user_id": user_id,
+            "verdict_color": "yellow",
+            "property": {
+                "property_id": prop.get("property_id"),
+                "user_id": prop.get("user_id"),
+                "formatted_address": prop.get("address"),
+                "state": prop.get("state_fips"),
+                "zip_code": None,
+                "bedrooms": prop.get("bedrooms"),
+                "bathrooms": prop.get("bathrooms"),
+                "square_feet": prop.get("square_footage"),
+                "year_built": prop.get("year_built"),
+                "property_type": prop.get("property_type"),
+            },
+            "financials": {
+                "monthly_cash_flow": None,
+                "cap_rate": None,
+                "roi_5yr": None,
+                "estimated_value": prop.get("last_sale_price"),
+            },
+            "variables": variables,
+            "onboarding": onboarding
+        }
+
+    
+    @staticmethod
     def get_dashboard_payload(*, user_id: str, property_id: str) -> dict[str, Any]:
         run_resp = (
             supabase.table("property_analysis_runs")
@@ -318,6 +467,7 @@ class AnalysisRepository:
         facts = None
         scores = None
         comparables: list[dict[str, Any]] = []
+        ai_summary = None
 
         if latest_run:
             run_id = latest_run["run_id"]
@@ -342,6 +492,12 @@ class AnalysisRepository:
             )
             score_rows = score_resp.data or []
             scores = score_rows[0] if score_rows else None
+
+            ai_summary = AnalysisRepository._get_ai_summary(
+                run_id=run_id,
+                property_id=property_id,
+                user_id=user_id,
+            )
 
             comps_resp = (
                 supabase.table("comparable_properties")
@@ -368,5 +524,6 @@ class AnalysisRepository:
             "latest_run": latest_run,
             "facts": facts,
             "scores": scores,
+            "ai_summary": ai_summary,
             "comparables": comparables,
         }

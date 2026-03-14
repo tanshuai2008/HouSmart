@@ -18,6 +18,7 @@ import closeIcon from "@/assets/dashboard/chat/close.svg";
 import feedbackIcon from "@/assets/dashboard/chat/feedback.svg";
 import { useAuth } from "@/providers/auth-context";
 import { getDashboardProperty, type DashboardPropertyPayload } from "@/lib/api/analysis";
+import { fetchWithBackendFallback } from "@/lib/api/client";
 
 import { dashboardData, type PriceTrendDataPoint, type RevenueExpensesDataPoint } from "./dashboard-data";
 import styles from "./dashboard-page.module.css";
@@ -62,8 +63,7 @@ export default function DashboardPage() {
 
         const loadMarketTrends = async () => {
             try {
-                const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://127.0.0.1:8000";
-                const response = await fetch(`${baseUrl}/api/market-trends`, {
+                const response = await fetchWithBackendFallback("/api/market-trends", {
                     signal: controller.signal,
                 });
 

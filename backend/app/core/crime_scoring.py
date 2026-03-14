@@ -9,7 +9,11 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from app.core.config import settings
 from app.core.supabase_client import supabase as default_supabase
-from app.data.crosswalk_leaic_data import CrimeCrosswalkError, resolve_crosswalk_for_fips
+from app.data.crosswalk_leaic_data import (
+    CrimeCrosswalkError,
+    resolve_crosswalk_for_fips,
+    resolve_crosswalk_for_fips_list,
+)
 from app.models.crime import (
     CrimeCategoryBreakdown,
     CrimeSafetyScoreResult,
@@ -102,6 +106,33 @@ def fetch_ori_metadata(
         "crime_offense_codes": dict(CRIME_OFFENSE_CODES),
         "crime_weights": dict(CRIME_WEIGHTS),
     }
+
+
+def fetch_candidate_agencies(
+    address: str,
+    *,
+    geocode_client: Optional[GeocodeClient] = None,
+    supabase_client=None,
+) -> list[dict[str, str]]:
+    normalized_address = address.strip()
+    if not normalized_address:
+        raise CrimeSafetyServiceError("address is required")
+
+    geocoder = geocode_client or GeocodeClient()
+    location = geocoder.geocode(normalized_address)
+    try:
+        agencies = resolve_crosswalk_for_fips_list(
+            place_fips=location.place_fips,
+            county_fips=location.county_fips,
+            supabase_client=supabase_client,
+        )
+    except CrimeCrosswalkError as exc:
+        raise CrimeSafetyServiceError(str(exc)) from exc
+
+    return [
+        {"ori": agency.ori, "name": agency.agency_name, "type": agency.agency_type}
+        for agency in agencies
+    ]
 
 
 def compute_crime_safety_score(
@@ -404,6 +435,7 @@ __all__ = [
     "CRIME_OFFENSE_CODES",
     "CRIME_WEIGHTS",
     "fetch_ori_metadata",
+    "fetch_candidate_agencies",
     "compute_crime_safety_score",
 ]
 

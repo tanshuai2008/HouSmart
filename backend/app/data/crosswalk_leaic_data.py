@@ -62,6 +62,31 @@ def resolve_crosswalk_for_fips(
     return None
 
 
+def resolve_crosswalk_for_fips_list(
+    *,
+    place_fips: Optional[str],
+    county_fips: Optional[str],
+    supabase_client: Optional["Client"] = None,
+) -> list[CrosswalkRecord]:
+    client = _resolve_client(supabase_client)
+    records: list[CrosswalkRecord] = []
+    seen: set[str] = set()
+
+    if place_fips:
+        for column_name in _column_variants("place_fips"):
+            for record in _query_crosswalk_rows(client, column_name, place_fips):
+                if record.ori not in seen:
+                    records.append(record)
+                    seen.add(record.ori)
+    if county_fips:
+        for column_name in _column_variants("county_fips"):
+            for record in _query_crosswalk_rows(client, column_name, county_fips):
+                if record.ori not in seen:
+                    records.append(record)
+                    seen.add(record.ori)
+    return records
+
+
 def _fetch_crosswalk(
     client: "Client",
     column: str,
@@ -76,42 +101,22 @@ def _fetch_crosswalk(
         agency_type,
     )
     column_variants = _column_variants(column)
-    rows = []
+    rows: list[dict] = []
     last_exc: Optional[Exception] = None
     any_query_succeeded = False
     for column_name in column_variants:
         try:
-            response = (
-                client
-                .table(CROSSWALK_TABLE_NAME)
-                .select("*")
-                .eq(column_name, value)
-                .limit(50)
-                .execute()
-            )
+            matched_rows = _query_crosswalk_rows_raw(client, column_name, value)
             any_query_succeeded = True
-            rows = response.data or []
+            rows = matched_rows
             if rows:
-                logger.debug(
-                    "Crosswalk matched using column variant %s=%s",
-                    column_name,
-                    value,
-                )
+                logger.debug("Crosswalk matched using column variant %s=%s", column_name, value)
                 break
-        except SupabaseConfigError as exc:
-            raise CrimeCrosswalkError(str(exc)) from exc
-        except Exception as exc:
+        except CrimeCrosswalkError as exc:
             last_exc = exc
-            msg = str(exc).lower()
-            if "column" in msg:
-                logger.warning(
-                    "Crosswalk query failed for column variant %s=%s; trying next variant: %s",
-                    column_name,
-                    value,
-                    exc,
-                )
+            if "no matching fips column found" in str(exc).lower():
                 continue
-            raise CrimeCrosswalkError(f"Supabase crosswalk lookup failed: {exc}") from exc
+            raise
     # Raise schema error only when every attempted variant failed due missing column.
     # If any variant query executed successfully (even with zero rows), return None
     # so caller can try county-level fallback.
@@ -122,21 +127,6 @@ def _fetch_crosswalk(
     if not rows:
         return None
 
-    def _normalize_agency_type(row: dict) -> str:
-        raw = (
-            row.get("agency_type")
-            or row.get("subtype1")
-            or row.get("SUBTYPE1")
-            or row.get("type")
-            or ""
-        )
-        text = str(raw).strip().lower()
-        if text in {"0", "city"}:
-            return "city"
-        if text in {"1", "county"}:
-            return "county"
-        return text
-
     selected_row = None
     for row in rows:
         if _normalize_agency_type(row) == agency_type:
@@ -145,26 +135,80 @@ def _fetch_crosswalk(
     if selected_row is None:
         selected_row = rows[0]
 
-    resolved_type = _normalize_agency_type(selected_row) or agency_type
+    return _row_to_crosswalk_record(selected_row, fallback_agency_type=agency_type)
+
+
+def _query_crosswalk_rows(client: "Client", column_name: str, value: str) -> list[CrosswalkRecord]:
+    return [
+        record
+        for row in _query_crosswalk_rows_raw(client, column_name, value)
+        if (record := _row_to_crosswalk_record(row)) is not None
+    ]
+
+
+def _query_crosswalk_rows_raw(client: "Client", column_name: str, value: str) -> list[dict]:
+    try:
+        response = (
+            client
+            .table(CROSSWALK_TABLE_NAME)
+            .select("*")
+            .eq(column_name, value)
+            .limit(50)
+            .execute()
+        )
+        return response.data or []
+    except SupabaseConfigError as exc:
+        raise CrimeCrosswalkError(str(exc)) from exc
+    except Exception as exc:
+        if "column" in str(exc).lower():
+            raise CrimeCrosswalkError(
+                f"Supabase crosswalk lookup failed: no matching FIPS column found for {column_name}"
+            ) from exc
+        raise CrimeCrosswalkError(f"Supabase crosswalk lookup failed: {exc}") from exc
+
+
+def _normalize_agency_type(row: dict) -> str:
+    raw = (
+        row.get("agency_type")
+        or row.get("agcytype")
+        or row.get("subtype1")
+        or row.get("SUBTYPE1")
+        or row.get("type")
+        or ""
+    )
+    text = str(raw).strip().lower()
+    if text in {"0", "city", "municipal police", "local police"}:
+        return "city"
+    if text in {"1", "county", "sheriff"}:
+        return "county"
+    return text
+
+
+def _row_to_crosswalk_record(
+    row: dict,
+    *,
+    fallback_agency_type: Optional[str] = None,
+) -> Optional[CrosswalkRecord]:
     resolved_ori = str(
-        selected_row.get("ori")
-        or selected_row.get("ori9")
-        or selected_row.get("ori7")
-        or selected_row.get("ORI")
-        or selected_row.get("ORI9")
-        or selected_row.get("ORI7")
+        row.get("ori")
+        or row.get("ori9")
+        or row.get("ori7")
+        or row.get("ORI")
+        or row.get("ORI9")
+        or row.get("ORI7")
         or ""
     ).strip()
     resolved_name = str(
-        selected_row.get("agency_name")
-        or selected_row.get("name")
-        or selected_row.get("NAME")
-        or selected_row.get("agency")
+        row.get("agency_name")
+        or row.get("name")
+        or row.get("NAME")
+        or row.get("address_name")
+        or row.get("agency")
         or ""
     ).strip()
+    resolved_type = _normalize_agency_type(row) or (fallback_agency_type or "")
 
     if not resolved_ori:
-        logger.warning("Crosswalk row found but ORI is empty for %s=%s", column, value)
         return None
 
     return CrosswalkRecord(
@@ -200,4 +244,5 @@ __all__ = [
     "CrimeCrosswalkError",
     "CROSSWALK_TABLE_NAME",
     "resolve_crosswalk_for_fips",
+    "resolve_crosswalk_for_fips_list",
 ]

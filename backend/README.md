@@ -41,7 +41,7 @@ Note:
 Crime score crosswalk requires data in `leaic_crosswalk`:
 
 ```bash
-python -m app.services.leaic_crosswalk_loader --tsv_path app/data/ICPSR_35158-V2/ICPSR_35158/DS0001/35158-0001-Data.tsv
+python -m app.services.leaic_crosswalk_loader --tsv_path app/data/35158-0001-Data.tsv
 ```
 
 Median price endpoint relies on `redfin_median_prices`:
@@ -63,13 +63,10 @@ uvicorn main:app --reload --port 8000
 - `POST /auth/login`
 - `POST /auth/google`
 - `POST /auth/verify`
-- `POST /api/education_level`
-- `POST /api/median_income`
-- `POST /api/amenity_score`
-- `POST /api/crime_score`
-- `POST /api/flood_risk_score`
-- `POST /api/transit_score`
-- `POST /api/rent_estimate`
-- `POST /api/noise_estimate_score`
-- `POST /api/median_property_price`
-- `POST /api/school_scores`
+- `GET /api/onboarding/{user_id}`
+- `PUT /api/onboarding/{user_id}`
+- `POST /api/property/analyze`
+- `GET /api/property/analyze/{run_id}`
+- `GET /api/dashboard/property/{property_id}`
+- `GET /api/property/recent-searches`
+- `GET /api/market-trends`

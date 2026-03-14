@@ -1,3 +1,5 @@
+import { fetchWithBackendFallback } from "@/lib/api/client";
+
 export interface AuthUser {
     id?: string;
     firebase_uid?: string;
@@ -13,10 +15,8 @@ interface AuthResponse {
     user: AuthUser;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
-
 async function postJson<T>(path: string, body: Record<string, unknown>): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
+    const response = await fetchWithBackendFallback(path, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -47,7 +47,7 @@ export async function logout(): Promise<{ message: string }> {
 }
 
 export async function loginWithGoogleIdToken(idToken: string): Promise<AuthResponse> {
-    const response = await fetch(`${API_BASE_URL}/auth/google`, {
+    const response = await fetchWithBackendFallback("/auth/google", {
         method: "POST",
         headers: {
             Authorization: `Bearer ${idToken}`,

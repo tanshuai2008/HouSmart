@@ -2,16 +2,9 @@
 
 ## 1. System Overview
 
-This backend is a FastAPI application that exposes address-based intelligence APIs for:
-- Education signal
-- Income signal
-- Amenity accessibility scoring
-- Crime safety scoring
-- Flood risk scoring
-- Transit accessibility scoring
-- Rent estimate
-- Noise estimate
-- Median property price
+This backend is a FastAPI application that exposes authentication, onboarding, and property-analysis APIs.
+
+The property-analysis flow still computes education, income, amenity, crime, flood, transit, rent, noise, median price, and school signals internally, but those score-specific public endpoints are no longer mounted.
 
 Primary app entrypoint:
 - `backend/main.py`
@@ -19,16 +12,12 @@ Primary app entrypoint:
 Active routers mounted by `main.py`:
 - `/api/health`
 - `/auth/*`
-- `/api/education_level`
-- `/api/median_income`
-- `/api/amenity_score`
-- `/api/crime_score`
-- `/api/flood_risk_score`
-- `/api/transit_score`
-- `/api/rent_estimate`
-- `/api/noise_estimate_score`
-- `/api/median_property_price`
-- `/api/school_scores`
+- `/api/onboarding/*`
+- `/api/property/analyze`
+- `/api/property/analyze/{run_id}`
+- `/api/dashboard/property/{property_id}`
+- `/api/property/recent-searches`
+- `/api/market-trends`
 
 Also available:
 - `/` root heartbeat message
@@ -173,6 +162,9 @@ Purpose:
 - Request/response observability table populated by middleware for API auditing.
 
 ## 5. Endpoint-by-Endpoint Deep Dive
+
+Note:
+- The score-specific sections below for amenity, education, income, crime, flood, transit, rent, noise, median price, and school scoring describe internal service behavior retained by the analysis pipeline; those public route wrappers were removed on March 13, 2026.
 
 ### 5.1 GET `/api/health`
 Behavior:

@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+import { fetchWithBackendFallback } from "@/lib/api/client";
 
 export interface StartAnalysisResponse {
     run_id: string;
@@ -27,7 +27,7 @@ export interface RecentSearch {
 }
 
 export async function startPropertyAnalysis(userId: string, address: string): Promise<StartAnalysisResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/property/analyze`, {
+    const response = await fetchWithBackendFallback("/api/property/analyze", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -46,7 +46,7 @@ export async function startPropertyAnalysis(userId: string, address: string): Pr
 }
 
 export async function getAnalysisRunStatus(runId: string, userId?: string): Promise<AnalysisRunStatus> {
-    const response = await fetch(`${API_BASE_URL}/api/property/analyze/${runId}`, {
+    const response = await fetchWithBackendFallback(`/api/property/analyze/${runId}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -66,7 +66,7 @@ export async function getAnalysisRunStatus(runId: string, userId?: string): Prom
 
 export async function getDashboardProperty(userId: string, propertyId: string): Promise<DashboardPropertyPayload> {
     const query = new URLSearchParams({ user_id: userId });
-    const response = await fetch(`${API_BASE_URL}/api/dashboard/property/${propertyId}?${query.toString()}`, {
+    const response = await fetchWithBackendFallback(`/api/dashboard/property/${propertyId}?${query.toString()}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -86,7 +86,7 @@ export async function getDashboardProperty(userId: string, propertyId: string): 
 
 export async function getRecentSearches(userId: string, limit = 3): Promise<RecentSearch[]> {
     const query = new URLSearchParams({ user_id: userId, limit: String(limit) });
-    const response = await fetch(`${API_BASE_URL}/api/property/recent-searches?${query.toString()}`, {
+    const response = await fetchWithBackendFallback(`/api/property/recent-searches?${query.toString()}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",

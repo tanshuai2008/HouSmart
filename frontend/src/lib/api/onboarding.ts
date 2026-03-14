@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8000";
+import { fetchWithBackendFallback } from "@/lib/api/client";
 
 export interface OnboardingAnswers {
     id?: number;
@@ -34,7 +34,7 @@ export function hasCompleteOnboardingAnswers(answers: OnboardingAnswers | null):
 }
 
 export async function getOnboardingAnswers(userId: string): Promise<OnboardingAnswers | null> {
-    const response = await fetch(`${API_BASE_URL}/onboarding/${userId}`, {
+    const response = await fetchWithBackendFallback(`/onboarding/${userId}`, {
         method: "GET",
         headers: {
             "Content-Type": "application/json",
@@ -50,7 +50,7 @@ export async function getOnboardingAnswers(userId: string): Promise<OnboardingAn
 }
 
 export async function upsertOnboardingAnswers(payload: OnboardingAnswers): Promise<OnboardingAnswers> {
-    const response = await fetch(`${API_BASE_URL}/onboarding`, {
+    const response = await fetchWithBackendFallback("/onboarding", {
         method: "PUT",
         headers: {
             "Content-Type": "application/json",

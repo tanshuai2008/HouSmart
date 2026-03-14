@@ -88,7 +88,7 @@ def _normalize_row(row: Dict[str, str]) -> Optional[Dict[str, Optional[str]]]:
     county_fips = _clean_county_fips(row)
     state_abbr = _clean_state(row)
 
-    return {
+    normalized = {
         "ori": ori,
         "agency_name": agency_name,
         "agency_type": agency_type,
@@ -96,6 +96,8 @@ def _normalize_row(row: Dict[str, str]) -> Optional[Dict[str, Optional[str]]]:
         "county_fips": county_fips,
         "state_abbr": state_abbr,
     }
+    normalized.update({key.lower(): _clean_raw_value(value) for key, value in row.items()})
+    return normalized
 
 
 def _clean_ori(row: Dict[str, str]) -> Optional[str]:
@@ -136,6 +138,13 @@ def _clean_state(row: Dict[str, str]) -> Optional[str]:
     if len(cleaned) == 2:
         return cleaned
     return cleaned[:2]
+
+
+def _clean_raw_value(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
 
 
 def main() -> None:

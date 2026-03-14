@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signInWithPopup } from "firebase/auth";
+import { AuthError, signInWithPopup } from "firebase/auth";
 
 import { Button } from "../ui/Button";
 import { Divider } from "../ui/Divider";
@@ -29,6 +29,20 @@ export const RegistrationForm = () => {
     const [error, setError] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+    const getGoogleSignInError = (err: unknown) => {
+        if (err instanceof AuthError) {
+            if (err.code === "auth/unauthorized-domain") {
+                return "Google sign-in is not enabled for this deployment domain yet. Add this site to Firebase Authentication -> Settings -> Authorized domains.";
+            }
+
+            if (err.code === "auth/popup-blocked") {
+                return "The sign-in popup was blocked by the browser. Allow popups and try again.";
+            }
+        }
+
+        return err instanceof Error ? err.message : "Google sign in failed";
+    };
 
     const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -57,7 +71,7 @@ export const RegistrationForm = () => {
             setAuthenticatedUser(response.user);
             router.push("/auth/setup/role");
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Google sign in failed");
+            setError(getGoogleSignInError(err));
         } finally {
             setIsGoogleSubmitting(false);
         }
@@ -98,6 +112,7 @@ export const RegistrationForm = () => {
                         <Input
                             id="signup-email"
                             type="email"
+                            autoComplete="email"
                             placeholder="name@company.com"
                             value={email}
                             onChange={(event) => setEmail(event.target.value)}
@@ -114,6 +129,7 @@ export const RegistrationForm = () => {
                         <Input
                             id="signup-password"
                             type="password"
+                            autoComplete="new-password"
                             placeholder="********"
                             value={password}
                             onChange={(event) => setPassword(event.target.value)}

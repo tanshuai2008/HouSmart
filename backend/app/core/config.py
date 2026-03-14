@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     NOMINATIM_URL: str = "https://nominatim.openstreetmap.org/search"
     NOMINATIM_HTTP_TIMEOUT_SECONDS: int = 10
 
+    # Caching (Supabase)
+    MEDIAN_HOUSE_PRICE_CACHE_TTL_SECONDS: int = 60 * 60 * 24  # 24h
+    NOISE_CACHE_TTL_SECONDS: int = 60 * 60 * 24 * 30  # 30d
+
     class Config:
         env_file = ".env"
         extra = "ignore"

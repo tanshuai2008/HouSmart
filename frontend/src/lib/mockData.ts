@@ -33,18 +33,6 @@ export interface FinancialMetric {
     tooltipText?: string;
 }
 
-export interface PriceTrendDataPoint {
-    month: string;
-    property: number;
-    market: number;
-}
-
-export interface RevenueExpensesDataPoint {
-    month: string;
-    revenue: number;
-    expenses: number;
-}
-
 export interface LocationScore {
     label: string;
     score: number; // 0-5
@@ -92,8 +80,6 @@ export interface DashboardData {
     property: PropertyDetails;
     insight: PropertyInsight;
     financialMetrics: FinancialMetric[];
-    priceTrend: PriceTrendDataPoint[];
-    revenueExpenses: RevenueExpensesDataPoint[];
     locationScores: LocationScore[];
     comparableListings: ComparableListing[];
 }
@@ -199,26 +185,6 @@ const mockDashboardData: DashboardData = {
             trendColor: "neutral",
             tooltipText: "Based on estimated rent vs. 2024 Census median income.",
         },
-    ],
-
-    priceTrend: [
-        { month: "2021", property: 98.4, market: 0 },
-        { month: "H2 21", property: 99.1, market: 0 },
-        { month: "2022", property: 101.4, market: 0 },
-        { month: "H2 22", property: 100.8, market: 0 },
-        { month: "2023", property: 99.0, market: 0 },
-        { month: "H2 23", property: 98.6, market: 0 },
-        { month: "2024", property: 99.4, market: 0 },
-    ],
-
-    revenueExpenses: [
-        { month: "2021", revenue: 850000, expenses: 0 },
-        { month: "H2 21", revenue: 920000, expenses: 0 },
-        { month: "2022", revenue: 1050000, expenses: 0 },
-        { month: "H2 22", revenue: 1010000, expenses: 0 },
-        { month: "2023", revenue: 980000, expenses: 0 },
-        { month: "H2 23", revenue: 995000, expenses: 0 },
-        { month: "2024", revenue: 1025000, expenses: 0 },
     ],
 
     locationScores: [

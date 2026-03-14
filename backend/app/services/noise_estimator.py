@@ -4,7 +4,9 @@ import time
 import requests
 
 from app.config.db import require_supabase
+from app.core.config import settings
 from app.services.geocode import geocode_address
+from app.utils.supabase_kv_cache import cache_get_json, cache_set_json
 
 
 # --------------------------------------------------
@@ -119,28 +121,45 @@ def estimate_noise_from_address(address: str):
     # --------------------------------------------------
     # Check Supabase Cache
     # --------------------------------------------------
-    supabase = require_supabase()
+    normalized_address = " ".join(address.split()).strip().lower()
+    cache_key = f"noise:address:{normalized_address}"
 
-    existing = (
-        supabase.table("noise_scores")
-        .select("*")
-        .eq("address", address)
-        .limit(1)
-        .execute()
-    )
-
-    if existing.data:
-
-        record = existing.data[0]
-
+    cached = None
+    try:
+        cached = cache_get_json(table="noise_cache", key=cache_key)
+    except Exception:
+        cached = None
+    if isinstance(cached, dict) and cached.get("noise_level") is not None:
         return {
+            **cached,
             "address": address,
             "city": city,
             "state": state,
-            "noise_level": record["noise_level"],
-            "distance_to_road_m": record["distance_to_road"],
-            "source": "Supabase Cache"
+            "source": "Supabase Cache",
         }
+
+    # Back-compat fallback: old cache table `noise_scores` (no TTL)
+    try:
+        supabase = require_supabase()
+        existing = (
+            supabase.table("noise_scores")
+            .select("distance_to_road, noise_level")
+            .eq("address", address)
+            .limit(1)
+            .execute()
+        )
+        if existing.data:
+            record = existing.data[0]
+            return {
+                "address": address,
+                "city": city,
+                "state": state,
+                "noise_level": record.get("noise_level"),
+                "distance_to_road_m": record.get("distance_to_road"),
+                "source": "Supabase Cache",
+            }
+    except Exception:
+        pass
 
     # --------------------------------------------------
     # Compute noise
@@ -149,16 +168,42 @@ def estimate_noise_from_address(address: str):
 
     noise = classify_noise(distance)
 
+    computed_result = {
+        "address": address,
+        "city": city,
+        "state": state,
+        "noise_level": noise,
+        "distance_to_road_m": distance,
+        "source": "OpenStreetMap",
+        "lat": lat,
+        "lon": lon,
+    }
+
     # --------------------------------------------------
     # Store in Supabase
     # --------------------------------------------------
-    supabase.table("noise_scores").insert({
-        "address": address,
-        "latitude": lat,
-        "longitude": lon,
-        "distance_to_road": distance,
-        "noise_level": noise
-    }).execute()
+    try:
+        cache_set_json(
+            table="noise_cache",
+            key=cache_key,
+            value=computed_result,
+            ttl_seconds=settings.NOISE_CACHE_TTL_SECONDS,
+        )
+    except Exception:
+        pass
+
+    # Best-effort write to legacy `noise_scores` table (if present)
+    try:
+        supabase = require_supabase()
+        supabase.table("noise_scores").insert({
+            "address": address,
+            "latitude": lat,
+            "longitude": lon,
+            "distance_to_road": distance,
+            "noise_level": noise
+        }).execute()
+    except Exception:
+        pass
 
     return {
         "address": address,
@@ -174,17 +219,42 @@ def estimate_noise_from_address(address: str):
 # Estimate Noise Level (by coordinates)
 # --------------------------------------------------
 def estimate_noise(lat: float, lon: float):
+    cache_key = f"noise:coords:{lat:.5f}:{lon:.5f}"
+    cached = None
+    try:
+        cached = cache_get_json(table="noise_cache", key=cache_key)
+    except Exception:
+        cached = None
+    if isinstance(cached, dict) and cached.get("noise_level") is not None:
+        return {
+            **cached,
+            "lat": lat,
+            "lon": lon,
+            "source": "Supabase Cache",
+        }
 
     distance = nearest_road_distance(lat, lon)
     noise = classify_noise(distance)
 
-    return {
+    result = {
         "lat": lat,
         "lon": lon,
         "noise_level": noise,
         "distance_to_road_m": distance,
-        "source": "OpenStreetMap"
+        "source": "OpenStreetMap",
     }
+
+    try:
+        cache_set_json(
+            table="noise_cache",
+            key=cache_key,
+            value=result,
+            ttl_seconds=settings.NOISE_CACHE_TTL_SECONDS,
+        )
+    except Exception:
+        pass
+
+    return result
 
 
 # --------------------------------------------------

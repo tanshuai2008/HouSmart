@@ -1,6 +1,7 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { PropertyVerdict } from "@/components/dashboard/PropertyVerdict";
 import { PropertyContext } from "@/components/dashboard/PropertyContext";
@@ -10,7 +11,8 @@ import { MarketTrends } from "@/components/dashboard/MarketTrends";
 import { ComparableListings } from "@/components/dashboard/ComparableListings";
 
 import mockDashboardData from "@/lib/mockData";
-import type { PriceTrendDataPoint, RevenueExpensesDataPoint } from "@/lib/mockData";
+import type { PriceTrendDataPoint, RevenueExpensesDataPoint } from "@/types/marketTrends";
+import { parseMarketTrendsResponse } from "@/lib/marketTrends";
 
 import aiCustomizationIcon from "@/assets/dashboard/chat/ai-customization.svg";
 import feedbackIcon from "@/assets/dashboard/chat/feedback.svg";
@@ -24,12 +26,14 @@ import closeIcon from "@/assets/dashboard/chat/close.svg";
  * `await fetch('/api/property/[id]')` — the TypeScript types already
  * match the expected API shape.
  */
-export default function DashboardPage() {
+function DashboardPageContent() {
+    const searchParams = useSearchParams();
+    const propertyIdParam = searchParams?.get("property_id");
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [activeTab, setActiveTab] = useState<'ai' | 'feedback'>('ai');
 
-    const [priceTrend, setPriceTrend] = useState<PriceTrendDataPoint[]>(mockDashboardData.priceTrend);
-    const [revenueExpenses, setRevenueExpenses] = useState<RevenueExpensesDataPoint[]>(mockDashboardData.revenueExpenses);
+    const [priceTrend, setPriceTrend] = useState<PriceTrendDataPoint[]>([]);
+    const [revenueExpenses, setRevenueExpenses] = useState<RevenueExpensesDataPoint[]>([]);
 
     const {
         property,
@@ -41,30 +45,35 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const controller = new AbortController();
+        const propertyId = propertyIdParam || process.env.NEXT_PUBLIC_DEFAULT_PROPERTY_ID;
+
+        if (!propertyId) {
+            return () => controller.abort();
+        }
+
+        const propertyIdSafe = propertyId;
 
         async function loadTrends() {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
-                const res = await fetch(`${baseUrl}/api/market-trends`, {
+                const res = await fetch(`${baseUrl}/api/market-trends?property_id=${encodeURIComponent(propertyIdSafe)}`, {
                     signal: controller.signal,
+                    cache: "no-store",
                 });
                 if (!res.ok) return;
 
-                const data = (await res.json()) as {
-                    priceTrend?: PriceTrendDataPoint[];
-                    revenueExpenses?: RevenueExpensesDataPoint[];
-                };
-
-                if (Array.isArray(data.priceTrend)) setPriceTrend(data.priceTrend);
-                if (Array.isArray(data.revenueExpenses)) setRevenueExpenses(data.revenueExpenses);
+                const json: unknown = await res.json();
+                const parsed = parseMarketTrendsResponse(json);
+                setPriceTrend(parsed.priceTrend);
+                setRevenueExpenses(parsed.revenueExpenses);
             } catch {
-                // Fall back silently to mock data.
+                // Keep empty series on error.
             }
         }
 
         loadTrends();
         return () => controller.abort();
-    }, []);
+    }, [propertyIdParam]);
 
     return (
         <div className="min-h-screen bg-[#F3F4F6] font-sans relative">
@@ -187,5 +196,13 @@ export default function DashboardPage() {
                 </button>
             </div>
         </div>
+    );
+}
+
+export default function DashboardPage() {
+    return (
+        <Suspense fallback={null}>
+            <DashboardPageContent />
+        </Suspense>
     );
 }

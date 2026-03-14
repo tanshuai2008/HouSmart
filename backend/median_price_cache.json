@@ -1,0 +1,196 @@
+{
+  "redfin_city:TX:austin": {
+    "timestamp": 1772389114.3553188,
+    "data": {
+      "city": "Austin",
+      "state": "TX",
+      "median_sale_price": 541000,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://huggingface.co/datasets/KJJ231/redfin-data/resolve/main/redfin_full.parquet"
+      }
+    }
+  },
+  "noise:37.4225:-122.0856": {
+    "timestamp": 1772387323.299778,
+    "data": {
+      "noise_level": "Very High",
+      "noise_score": 84.32,
+      "distance_to_road_m": 35.79,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 901,
+          "major_road_count": 62,
+          "total_road_length_m": 65465.1,
+          "nearest_road_distance_m": 35.79,
+          "nearest_major_road_distance_m": 83.61,
+          "nearest_roads": [
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 35.785073395237205,
+              "length_m": 51.3666919516061
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 38.26191575716815,
+              "length_m": 88.78828448603014
+            },
+            {
+              "highway": "service",
+              "name": null,
+              "distance_m": 42.96108098926047,
+              "length_m": 89.93039013073991
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 43.61544037411201,
+              "length_m": 347.64993667730374
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 43.982939446372654,
+              "length_m": 131.14739835797002
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 30,
+          "nearest_airport_feature_distance_m": 2476.04
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": [
+            "commercial",
+            "industrial",
+            "recreation_ground",
+            "forest",
+            "grass",
+            "construction"
+          ]
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 26.63,
+        "major_road": 22.65,
+        "multi_roads": 4.74,
+        "road_density": 15.0,
+        "rail": 0.0,
+        "airport": 7.3,
+        "landuse": 8.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "noise:37.422:-122.0841": {
+    "timestamp": 1772387389.3966262,
+    "data": {
+      "noise_level": "Very High",
+      "noise_score": 86.86,
+      "distance_to_road_m": 10.36,
+      "factors": {
+        "roads": {
+          "radius_m": 600,
+          "road_count": 1015,
+          "major_road_count": 68,
+          "total_road_length_m": 72441.3,
+          "nearest_road_distance_m": 10.36,
+          "nearest_major_road_distance_m": 118.55,
+          "nearest_roads": [
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 10.363544775734175,
+              "length_m": 122.54023615362999
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 11.910163326542113,
+              "length_m": 6.080052468697996
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 15.67059273456294,
+              "length_m": 347.64993667730374
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 15.67059273456294,
+              "length_m": 13.228120032604822
+            },
+            {
+              "highway": "footway",
+              "name": null,
+              "distance_m": 18.848549739634382,
+              "length_m": 6.347694821055997
+            }
+          ]
+        },
+        "railways": {
+          "radius_m": 1200,
+          "rail_count": 0,
+          "nearest_rail_distance_m": null
+        },
+        "airports": {
+          "radius_m": 7000,
+          "airport_feature_count": 30,
+          "nearest_airport_feature_distance_m": 2353.6
+        },
+        "landuse": {
+          "radius_m": 500,
+          "types": [
+            "commercial",
+            "forest",
+            "grass",
+            "construction"
+          ]
+        }
+      },
+      "score_breakdown": {
+        "nearest_road": 30.0,
+        "major_road": 21.12,
+        "multi_roads": 5.25,
+        "road_density": 15.0,
+        "rail": 0.0,
+        "airport": 7.49,
+        "landuse": 8.0
+      },
+      "method": "Composite score from nearby roads, railways, airports, and landuse",
+      "source": "OpenStreetMap",
+      "data_sources": {
+        "spatial": "Overpass API (OpenStreetMap)"
+      }
+    }
+  },
+  "redfin_city:PA:pittsburgh": {
+    "timestamp": 1772389184.5527947,
+    "data": {
+      "city": "Pittsburgh",
+      "state": "PA",
+      "median_sale_price": 249900,
+      "period": "2026-01-31",
+      "source": "Redfin Data Center",
+      "retrieved_from": {
+        "url": "https://huggingface.co/datasets/KJJ231/redfin-data/resolve/main/redfin_full.parquet"
+      }
+    }
+  }
+}

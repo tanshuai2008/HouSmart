@@ -1,7 +1,6 @@
 import requests
-import os
 
-NOMINATIM_URL = os.getenv("NOMINATIM_URL", "https://nominatim.openstreetmap.org/search")
+from app.core.config import settings
 
 
 def geocode_address(address: str):
@@ -18,10 +17,15 @@ def geocode_address(address: str):
         "countrycodes": "us",
     }
 
-    headers = {"User-Agent": "HouSmart"}
+    headers = {"User-Agent": settings.HTTP_USER_AGENT or "HouSmart"}
 
     try:
-        res = requests.get(NOMINATIM_URL, params=params, headers=headers, timeout=20)
+        res = requests.get(
+            settings.NOMINATIM_URL or "https://nominatim.openstreetmap.org/search",
+            params=params,
+            headers=headers,
+            timeout=float(getattr(settings, "NOMINATIM_HTTP_TIMEOUT_SECONDS", 20) or 20),
+        )
         res.raise_for_status()
         data = res.json()
 

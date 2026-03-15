@@ -56,7 +56,7 @@ function DashboardPageContent() {
         async function loadTrends() {
             try {
                 const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:8000";
-                const res = await fetch(`${baseUrl}/api/market-trends?property_id=${encodeURIComponent(propertyIdSafe)}`, {
+                const res = await fetch(`${baseUrl}/api/market-trends?property_id=${encodeURIComponent(propertyIdSafe)}&months=24`, {
                     signal: controller.signal,
                     cache: "no-store",
                 });

@@ -12,7 +12,7 @@ import {
 import { RevenueExpensesDataPoint } from "@/types/marketTrends";
 
 interface RevenueExpensesChartProps {
-    data: RevenueExpensesDataPoint[]; // Will actually be holding price data now, reusing interface for simplicity
+    data: RevenueExpensesDataPoint[];
 }
 
 const CustomTooltip = ({
@@ -63,24 +63,32 @@ export const RevenueExpensesChart: React.FC<RevenueExpensesChartProps> = ({
         .map((d) => (typeof d?.revenue === "number" ? d.revenue : Number(d?.revenue)))
         .filter((v) => Number.isFinite(v)) as number[];
 
-    const defaultMin = 850_000;
-    const defaultMax = 1_050_000;
-    const minVal = values.length ? Math.min(...values) : defaultMin;
-    const maxVal = values.length ? Math.max(...values) : defaultMax;
-    const range = Math.max(1, maxVal - minVal);
-    const pad = values.length ? range * 0.08 : 0;
+    const hasData = values.length > 0;
 
-    const rawMin = minVal - pad;
-    const rawMax = maxVal + pad;
-    const step = niceStep((rawMax - rawMin) / 4);
-    const domainMin = Math.floor(rawMin / step) * step;
-    const domainMax = Math.ceil(rawMax / step) * step;
+    let domain: [number | "auto", number | "auto"] = ["auto", "auto"];
+    let ticks: number[] | undefined = undefined;
 
-    const ticks: number[] = [];
-    for (let i = 0; i < 5; i++) {
-        ticks.push(domainMin + step * i);
+    if (hasData) {
+        const minVal = Math.min(...values);
+        const maxVal = Math.max(...values);
+        const range = Math.max(1, maxVal - minVal);
+        const pad = range * 0.08;
+
+        const rawMin = minVal - pad;
+        const rawMax = maxVal + pad;
+        const step = niceStep((rawMax - rawMin) / 4);
+        const domainMin = Math.floor(rawMin / step) * step;
+        const domainMax = Math.ceil(rawMax / step) * step;
+
+        const tickValues: number[] = [];
+        for (let i = 0; i < 5; i++) {
+            tickValues.push(domainMin + step * i);
+        }
+        if (tickValues[tickValues.length - 1] < domainMax) tickValues.push(domainMax);
+
+        domain = [domainMin, domainMax];
+        ticks = tickValues;
     }
-    if (ticks[ticks.length - 1] < domainMax) ticks.push(domainMax);
 
     const renderDot = (props: { cx?: number; cy?: number }) => {
         const { cx, cy } = props;
@@ -118,7 +126,7 @@ export const RevenueExpensesChart: React.FC<RevenueExpensesChartProps> = ({
                     tick={{ fontSize: 10, fill: "#9CA3AF" }}
                     axisLine={false}
                     tickLine={false}
-                    domain={[domainMin, domainMax]}
+                    domain={domain}
                     ticks={ticks}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#E5E7EB", strokeWidth: 1 }} />

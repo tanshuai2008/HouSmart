@@ -28,7 +28,7 @@ class MarketTrendsResponse(BaseModel):
 def get_market_trends(
     response: Response,
     property_id: str = Query(..., min_length=1),
-    months: int = Query(36, ge=1, le=60),
+    months: int = Query(24, ge=1, le=60),
 ):
     """Returns the chart time series used by the dashboard Market Trends graphs.
 

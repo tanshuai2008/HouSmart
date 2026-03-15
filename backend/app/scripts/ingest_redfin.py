@@ -6,6 +6,7 @@ import gzip
 import re
 from typing import Optional
 import random
+import argparse
 
 import pandas as pd
 import requests
@@ -133,7 +134,7 @@ def download_redfin(url: str) -> str:
 # --------------------------------------------------
 # STEP 2 — Extract + Prepare Data
 # --------------------------------------------------
-def prepare_dataframe(gz_path: str) -> tuple[pd.DataFrame, str]:
+def prepare_dataframe(gz_path: str, *, months: int = 36) -> tuple[pd.DataFrame, str]:
 
     print("📦 Extracting dataset...")
 
@@ -190,20 +191,25 @@ def prepare_dataframe(gz_path: str) -> tuple[pd.DataFrame, str]:
     df.dropna(inplace=True)
 
     # --------------------------------------------------
-    # Keep last 36 months (inclusive) for trends
+    # Keep last N months per (city,state) to reduce storage
     # --------------------------------------------------
+    if not isinstance(months, int) or months <= 0:
+        raise ValueError(f"months must be a positive int (got {months!r})")
     latest_period = df["period"].max()
     if pd.isna(latest_period):
         raise ValueError("No valid 'period' values found in Redfin dataset")
 
-    # 36 monthly points inclusive -> subtract 35 months.
-    start_period = latest_period - pd.DateOffset(months=35)
+    print(f"📅 Latest period found (global): {latest_period.date()}")
+    print(f"🗓 Keeping up to {months} monthly rows per (city,state)")
 
-    print(f"📅 Latest period found: {latest_period.date()}")
-    print(f"🗓 Keeping periods since: {start_period.date()}")
+    # Sort newest-first within each city/state, then take the first 36 rows.
+    # This guarantees we keep at most 36 records per place even if some places
+    # lag behind the global latest period.
+    df = df.sort_values(["city", "state", "period"], ascending=[True, True, False])
+    df["_rownum"] = df.groupby(["city", "state"], sort=False).cumcount()
+    df = df[df["_rownum"] < months].drop(columns=["_rownum"], errors="ignore")
 
-    df = df[df["period"] >= start_period]
-
+    # Earliest period in the retained dataset (used to bound retention in Supabase).
     earliest_period_str = df["period"].min().strftime("%Y-%m-%d")
 
     df["period"] = df["period"].dt.strftime("%Y-%m-%d")
@@ -299,6 +305,91 @@ def upload_to_supabase(df: pd.DataFrame, earliest_period: str):
 
     print("\n✅ Upload Complete")
 
+    # Maintain a latest-per-city snapshot table for fast lookups.
+    # This is best-effort so ingestion of the main trends table doesn't fail
+    # if the snapshot table doesn't exist yet.
+    try:
+        _upsert_latest_snapshots(df, supabase=supabase)
+    except Exception as e:
+        print(f"\n⚠ Skipping latest snapshot upsert (non-fatal): {e}")
+
+
+def _upsert_latest_snapshots(df: pd.DataFrame, *, supabase) -> None:
+    """Upsert the latest row per (city,state) into `redfin_city_latest`.
+
+    Requires Supabase table `public.redfin_city_latest` with PK (city,state).
+    """
+
+    if df.empty:
+        return
+
+    # `df.period` is a YYYY-MM-DD string after prepare_dataframe.
+    work = df.copy()
+    work["_period"] = pd.to_datetime(work["period"], errors="coerce")
+    work.dropna(subset=["_period"], inplace=True)
+    if work.empty:
+        return
+
+    # Latest row per city/state
+    work.sort_values(["city", "state", "_period"], inplace=True)
+    latest = work.drop_duplicates(subset=["city", "state"], keep="last")
+
+    ratio_enabled = "sale_to_list_ratio" in latest.columns
+
+    rows: list[dict] = []
+    for row in latest.itertuples(index=False):
+        item = {
+            "city": getattr(row, "city"),
+            "state": getattr(row, "state"),
+            "period": getattr(row, "period"),
+            "median_price": int(getattr(row, "median_price")),
+        }
+        if ratio_enabled and hasattr(row, "sale_to_list_ratio"):
+            try:
+                item["sale_to_list_ratio"] = float(getattr(row, "sale_to_list_ratio"))
+            except Exception:
+                pass
+        rows.append(item)
+
+    if not rows:
+        return
+
+    print(f"\n🧾 Upserting latest snapshots: {len(rows)} rows into redfin_city_latest...")
+
+    batch_size = 500
+    for start in range(0, len(rows), batch_size):
+        batch = rows[start : start + batch_size]
+        try:
+            supabase.table("redfin_city_latest").upsert(batch, on_conflict="city,state").execute()
+        except Exception as e:
+            # If the table doesn't have sale_to_list_ratio, retry without it.
+            if ratio_enabled and "sale_to_list_ratio" in str(e):
+                ratio_enabled = False
+                batch_no_ratio = []
+                for item in batch:
+                    item = dict(item)
+                    item.pop("sale_to_list_ratio", None)
+                    batch_no_ratio.append(item)
+                supabase.table("redfin_city_latest").upsert(batch_no_ratio, on_conflict="city,state").execute()
+            else:
+                raise
+
+
+def upload_latest_only_to_supabase(df: pd.DataFrame) -> None:
+    """Upload only the latest-per-(city,state) snapshot into `redfin_city_latest`.
+
+    This does NOT insert/delete anything from the monthly trends table.
+
+    Requirements:
+    - Supabase table `public.redfin_city_latest` with PK/unique constraint on (city,state).
+    - Columns: city, state, period, median_price (and optional sale_to_list_ratio).
+    """
+
+    supabase = require_supabase()
+    print(f"\n🧾 Upserting latest snapshots only into redfin_city_latest...")
+    _upsert_latest_snapshots(df, supabase=supabase)
+    print("✅ Latest snapshot upload complete")
+
 
 def upload_to_supabase_scoped(
     df: pd.DataFrame,
@@ -388,11 +479,17 @@ def upload_to_supabase_scoped(
 
     print("\n✅ Scoped upload complete")
 
+    # Best-effort update of the latest snapshot table for this city/state.
+    try:
+        _upsert_latest_snapshots(df, supabase=supabase)
+    except Exception as e:
+        print(f"\n⚠ Skipping scoped latest snapshot upsert (non-fatal): {e}")
+
 
 # --------------------------------------------------
 # MAIN INGEST FLOW
 # --------------------------------------------------
-def ingest_redfin():
+def ingest_redfin(*, months: int = 36):
 
     # Download + parse can fail if a previous resumed download produced a corrupted gzip.
     # Retry once with a clean download (delete cached file and start over).
@@ -410,7 +507,7 @@ def ingest_redfin():
         gz_path = download_redfin(REDFIN_URL)
 
         try:
-            df, earliest_period = prepare_dataframe(gz_path)
+            df, earliest_period = prepare_dataframe(gz_path, months=months)
             upload_to_supabase(df, earliest_period=earliest_period)
             last_error = None
             break
@@ -433,7 +530,46 @@ def ingest_redfin():
         raise last_error
 
 
-def ingest_redfin_sample(*, seed: int | None = None) -> dict:
+def ingest_redfin_latest_only(*, months: int = 36):
+    """Download + prepare Redfin, then upload ONLY the latest snapshot table."""
+
+    last_error: Exception | None = None
+    gz_path: str | None = None
+
+    for attempt in range(2):
+        if gz_path:
+            try:
+                os.remove(gz_path)
+            except OSError:
+                pass
+            gz_path = None
+
+        gz_path = download_redfin(REDFIN_URL)
+
+        try:
+            df, _earliest_period = prepare_dataframe(gz_path, months=months)
+            upload_latest_only_to_supabase(df)
+            last_error = None
+            break
+        except (gzip.BadGzipFile, OSError, pd.errors.ParserError) as e:
+            last_error = e
+            print(f"\n⚠ Failed to extract Redfin gzip ({type(e).__name__}: {e}).")
+            if attempt == 0:
+                print("🔁 Retrying with a fresh download...")
+                continue
+            raise
+        finally:
+            if gz_path:
+                try:
+                    os.remove(gz_path)
+                except OSError:
+                    pass
+
+    if last_error is not None:
+        raise last_error
+
+
+def ingest_redfin_sample(*, seed: int | None = None, months: int = 36) -> dict:
     """Extract Redfin, pick a random city/state slice, and upload only that slice.
 
     Returns metadata about what was uploaded.
@@ -444,7 +580,7 @@ def ingest_redfin_sample(*, seed: int | None = None) -> dict:
     gz_path = None
     try:
         gz_path = download_redfin(REDFIN_URL)
-        df, earliest_period = prepare_dataframe(gz_path)
+        df, earliest_period = prepare_dataframe(gz_path, months=months)
 
         if df.empty:
             raise RuntimeError("Prepared Redfin dataframe is empty")
@@ -478,4 +614,35 @@ def ingest_redfin_sample(*, seed: int | None = None) -> dict:
 
 
 if __name__ == "__main__":
-    ingest_redfin()
+    parser = argparse.ArgumentParser(description="Ingest Redfin city market tracker into Supabase")
+    parser.add_argument(
+        "--latest-only",
+        action="store_true",
+        help="Only upsert the latest-per-city snapshot into redfin_city_latest (no monthly trends upload)",
+    )
+    parser.add_argument(
+        "--sample",
+        action="store_true",
+        help="Upload only a single random city/state slice (for smoke testing)",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed used with --sample",
+    )
+    parser.add_argument(
+        "--months",
+        type=int,
+        default=36,
+        help="Number of most-recent months to keep per (city,state) in the trends table (default: 36)",
+    )
+
+    args = parser.parse_args()
+
+    if args.sample:
+        ingest_redfin_sample(seed=args.seed, months=args.months)
+    elif args.latest_only:
+        ingest_redfin_latest_only(months=args.months)
+    else:
+        ingest_redfin(months=args.months)

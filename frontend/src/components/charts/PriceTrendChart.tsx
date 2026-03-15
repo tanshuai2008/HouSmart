@@ -53,15 +53,16 @@ export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
         .map((d) => (typeof d?.property === "number" ? d.property : Number(d?.property)))
         .filter((v) => Number.isFinite(v)) as number[];
 
-    const defaultMin = 97;
-    const defaultMax = 103;
-    const minVal = values.length ? Math.min(...values) : defaultMin;
-    const maxVal = values.length ? Math.max(...values) : defaultMax;
-    const pad = values.length ? Math.max(0.2, (maxVal - minVal) * 0.1) : 0;
+    const hasData = values.length > 0;
+
+    const minVal = hasData ? Math.min(...values) : 0;
+    const maxVal = hasData ? Math.max(...values) : 0;
+    const pad = hasData ? Math.max(0.2, (maxVal - minVal) * 0.1) : 0;
     const domainMin = Math.floor((minVal - pad) * 10) / 10;
     const domainMax = Math.ceil((maxVal + pad) * 10) / 10;
     const mid = Math.round(((domainMin + domainMax) / 2) * 10) / 10;
-    const ticks = [domainMin, mid, domainMax];
+    const ticks = hasData ? [domainMin, mid, domainMax] : undefined;
+    const domain: [number | "auto", number | "auto"] = hasData ? [domainMin, domainMax] : ["auto", "auto"];
 
     const renderDot = (props: { cx?: number; cy?: number }) => {
         const { cx, cy } = props;
@@ -99,7 +100,7 @@ export const PriceTrendChart: React.FC<PriceTrendChartProps> = ({ data }) => {
                     tick={{ fontSize: 10, fill: "#9CA3AF" }}
                     axisLine={false}
                     tickLine={false}
-                    domain={[domainMin, domainMax]}
+                    domain={domain}
                     ticks={ticks}
                 />
                 <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#E5E7EB", strokeWidth: 1 }} />
